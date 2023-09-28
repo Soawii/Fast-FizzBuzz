@@ -7,7 +7,7 @@ int main()
 	char buffer[15000];
 	char* buffer_ptr = buffer, * end_ptr = buffer + sizeof(buffer);
 	char output_string[500];
-  char *string_ptr = output_string;
+  	char *string_ptr = output_string;
 	printf("1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\n");
 	long long int base_number = 1, current_number = 10;
 	for (int digits = 2; digits < 10; digits++)
