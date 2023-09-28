@@ -71,9 +71,10 @@ int main()
 ```
 This runs almost three times faster than the previous program! However it is still very slow. 
 ### Speeding up the algorithm
+#### Replacing sprintf() with memcpy()
 We have dealt with the output speed, now we have to deal with the speed of the algorithm itself. 
-After some testing, we see that sprintf function is very costly to be ran for every number and needs to be replaced. 
-We can replace it with memcpy, but for that we need to store out current number as a string, let's do that.
+After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced. 
+We can replace it with memcpy(), but for that we need to store out current number as a string, let's do that.
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -135,6 +136,7 @@ int main()
 }
 ```
 And that makes the program run 7 times faster! 
+#### Removing MOD and unrolling loops
 Now we can notice that the MOD (%) operation is costly and should be the next on the chopping block.
 We can remove it because "Fizz, Buzz, Number etc." repeats itself every 15 lines, so we can simply unroll the loop, let's do it.
 The one digit numbers can not fit into a 15-number cycle as there would be many unnecesary checks, we print them out first and start our cycle from 10.
@@ -185,6 +187,7 @@ int main()
 }
 ```
 This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.
+#### Reduce memcpy() calls 
 The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.
 But how can we achieve less calls? 
 The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.
@@ -249,3 +252,4 @@ int main()
 }
 ```
 This makes out program another 2.5 times faster and it is *at the moment* the final iteration of the program.
+~
