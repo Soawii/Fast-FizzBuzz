@@ -24,8 +24,9 @@ int main()
 }
 ```
 ### Speeding up the output
-We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow? 
-The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls. This is VERY innefective and we can fix it by implementing our own buffer with a much bigger size, writing to it instead of calling printf, and then outputting all of its contents into stdout when there's no more space.
+We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow?   
+The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls.  
+This is VERY innefective and we can fix it by implementing our own buffer with a much bigger size, writing to it instead of calling printf, and then outputting all of its contents into stdout when there's no more space.
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -69,12 +70,12 @@ int main()
     return 0;
 }
 ```
-This runs almost three times faster than the previous program! However it is still very slow. 
+This runs almost three times faster than the previous program! However it is still very slow.  
 ### Speeding up the algorithm
 #### Replacing sprintf() with memcpy()
-We have dealt with the output speed, now we have to deal with the speed of the algorithm itself. 
-After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced. 
-We can replace it with memcpy(), but for that we need to store out current number as a string, let's do that.
+We have dealt with the output speed, now we have to deal with the speed of the algorithm itself.   
+After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced.  
+We can replace it with memcpy(), but for that we need to store out current number as a string, let's do that.  
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -135,12 +136,12 @@ int main()
     return 0;
 }
 ```
-And that makes the program run 7 times faster! 
+And that makes the program run 7 times faster!  
 #### Removing MOD and unrolling loops
-Now we can notice that the MOD (%) operation is costly and should be the next on the chopping block.
-We can remove it because "Fizz, Buzz, Number etc." repeats itself every 15 lines, so we can simply unroll the loop, let's do it.
-The one digit numbers can not fit into a 15-number cycle as there would be many unnecesary checks, we print them out first and start our cycle from 10.
-This change also helps us very nicely with the digit carry over, because now our cycles of 15 are always going to end at 99, 999, 9999... and we will not have to check if we went over digit limit. 
+Now we can notice that the MOD (%) operation is costly and should be the next on the chopping block.  
+We can remove it because "Fizz, Buzz, Number etc." repeats itself every 15 lines, so we can simply unroll the loop, let's do it.  
+The one digit numbers can not fit into a 15-number cycle as there would be many unnecesary checks, we print them out first and start our cycle from 10.  
+This change also helps us very nicely with the digit carry over, because now our cycles of 15 are always going to end at 99, 999, 9999... and we will not have to check if we went over digit limit.   
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -186,12 +187,12 @@ int main()
     return 0;
 }
 ```
-This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.
+This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.  
 #### Reduce memcpy() calls 
-The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.
-But how can we achieve less calls? 
-The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.
-We need to create a string only once per every digit, because only the digit number changes the string size.
+The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.  
+But how can we achieve less calls?   
+The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.  
+We need to create a string only once per every digit, because only the digit number changes the string size.  
 Each cycle we will have to increase each number in the string by the line amount in the string, which is why it's the best to make a string of 30 lines, as it's much easier to add 30 to each number in the string than it is to add 15.
 ```c
 #include <stdio.h>
