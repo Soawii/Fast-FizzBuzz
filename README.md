@@ -186,7 +186,8 @@ int main()
 ```
 This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.
 The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.
-But how can we achieve less calls? The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.
+But how can we achieve less calls? 
+The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.
 We need to create a string only once per every digit, because only the digit number changes the string size.
 Each cycle we will have to increase each number in the string by the line amount in the string, which is why it's the best to make a string of 30 lines, as it's much easier to add 30 to each number in the string than it is to add 15.
 ```c
