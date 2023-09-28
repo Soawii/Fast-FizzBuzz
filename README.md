@@ -75,7 +75,7 @@ This runs almost three times faster than the previous program! However it is sti
 #### Replacing sprintf() with memcpy()
 We have dealt with the output speed, now we have to deal with the speed of the algorithm itself.   
 After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced.  
-We can replace it with memcpy(), but for that we need to store out current number as a string, let's do that.  
+We can replace it with memcpy(), but for that we need to store our current number as a string, let's do that.  
 ```c
 #include <stdio.h>
 #include <string.h>
