@@ -6,7 +6,7 @@ It *should* work with this:
 ```
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
-make FizzBuzz  
+make  
 make test  
 ```
 If it doesn't:
