@@ -1,6 +1,14 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz
 
+## Build
+It *should* work with this:  
+
+git clone https://github.com/Soawii/FastFizzBuzz  
+cd FastFizzBuzz  
+make FizzBuzz  
+make test  
+
 ## Algorithm explanation (step by step)
 ### The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.
