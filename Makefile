@@ -1,6 +1,5 @@
-fizzbuzz: fizzbuzz.S
-	gcc -mavx2 -c fizzbuzz.S
-	ld -o fizzbuzz fizzbuzz.o
+FizzBuzz: FizzBuzz.c
+	gcc FizzBuzz.c -o FizzBuzz -O3 -march=native
 
-test: fizzbuzz
-	timeout 5 ./fizzbuzz | pv > /dev/null	
+test: FizzBuzz
+	./FizzBuzz | pv > /dev/null	
