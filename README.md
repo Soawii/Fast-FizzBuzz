@@ -9,6 +9,13 @@ cd FastFizzBuzz
 make FizzBuzz  
 make test  
 ```
+If it doesn't:
+```
+git clone https://github.com/Soawii/FastFizzBuzz  
+cd FastFizzBuzz  
+gcc FizzBuzz.c -o FizzBuzz -O3 -march=native
+time ./FizzBuzz | pv > /dev/null
+```
 ## Algorithm explanation (step by step)
 ### The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.
