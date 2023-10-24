@@ -290,6 +290,88 @@ As i've read, this function is buggy and poorly documented, so we need to take s
 We can achieve this with function "fcntl()" with F_SETPIPE_SZ flag being used. The optimal size may vary on the system and needs to tweaked a bit.  
   
 Let's implement these functions into our solution and see how much faster it becomes!
+```c
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <fcntl.h>
+#include <string.h>
+char* number_ptrs[16];
+const int table[] = { 4, 7, 2, 11, 2, 7, 12, 2, 12, 7, 2, 11, 2, 7, 12, 2 };   // number of chars to jump from one tens digit to another
+#define BUFFER_SIZE (1 << 20)
+int main()
+{
+    fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
+	char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], *current_buffer = buffer1, *buffer_ptr = buffer1;
+	int buffer_in_use = 0;
+	char output_string[500];
+  	char *string_ptr = output_string;
+	printf("1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\n");
+	long long int base_number = 1, current_number = 10;
+	for (int digits = 2; digits < 10; digits++)
+	{
+		int block_size = sprintf(string_ptr, "Buzz\n%lli1\nFizz\n%lli3\n%lli4\nFizzBuzz\n%lli6\n%lli7\nFizz\n%lli9\nBuzz\nFizz\n%lli2\n%lli3\nFizz\nBuzz\n%lli6\nFizz\n%lli8\n%lli9\nFizzBuzz\n%lli1\n%lli2\nFizz\n%lli4\nBuzz\nFizz\n%lli7\n%lli8\nFizz\n", base_number, base_number, base_number, base_number, base_number, base_number, base_number + 1, base_number + 1, base_number + 1, base_number + 1, base_number + 1, base_number + 2, base_number + 2, base_number + 2, base_number + 2, base_number + 2);
+		memcpy(buffer_ptr, string_ptr, block_size);
+		current_number += 30;
+		buffer_ptr += block_size;
+		base_number *= 10;
+		char* temp = string_ptr;
+		for (int i = 0; i < 16; i++) // filling an array of pointers to the numbers in the string
+		{
+			temp += table[i] + (digits - 1);
+			number_ptrs[i] = temp;
+		}
+		long long int runs = 1;
+		while (runs > 0)
+		{
+			long long int runs_to_fill_output = (((current_buffer + BUFFER_SIZE) - buffer_ptr) / block_size) + 1, runs_to_fill_digit = (((base_number * 10) - current_number) / 30);
+			runs = runs_to_fill_output > runs_to_fill_digit ? runs_to_fill_digit : runs_to_fill_output; // calculating the number of 30 line outputs we can do in the current digit or remaining buffer size
+			current_number += runs * 30;
+			for (int i = 0; i < runs; i++)
+			{
+				for (int j = 0; j < 16; j++) // adding 30 to each of 16 numbers in the string
+				{
+					char* temp = number_ptrs[j];
+					if (*temp < '7') *temp += 3;
+					else
+					{
+						*temp-- -= 7;
+						while (*temp == '9') *temp-- = '0';
+						*temp += 1;
+					}
+				}
+				memcpy(buffer_ptr, string_ptr, block_size);
+				buffer_ptr += block_size;
+			}
+			if (runs > 0)
+			{
+			    int left_over = buffer_ptr - (current_buffer + BUFFER_SIZE);
+			    struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
+                while (BUFVEC.iov_len > 0) 
+                {
+                    int written = vmsplice(1, &BUFVEC, 1, 0);
+                    BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
+                    BUFVEC.iov_len -= written;
+                }
+                fwrite(buffer, 1, buffer_ptr - buffer, stdout);
+                if (buffer_in_use == 0)
+                {
+                    memcpy(buffer2, current_buffer + BUFFER_SIZE, left_over);
+                    current_buffer = buffer2;
+                }
+                else
+                {
+                    memcpy(buffer1, current_buffer + BUFFER_SIZE, left_over);
+                    current_buffer = buffer1;
+                }
+                buffer_ptr = current_buffer + left_over;
+			}
+		}
+	}
+	return 0;
+}
 ```
-
-```
+-write somethinng about the speed
+### Making use of SIMD intrinsics
+Making use of this technology can make the code faster, but most of this is done by compiler already with high optimization like -O3.    
+The main reason why we're switching to this is to easily translate our code into ASM code later with no unnecessary intructions.  
+Let's start by implementing the most obvious solution: Represent out current number as a __mm256i, each byte representing a digit ('0' - '9'). If we represent each digit in numbers from 0 to 9 it gets very difficult to handle the carry, after some time we can figure out that it is the best to represent digits as 0 = 246, 9 = 255 (the highest value of 8-bit unsigned integer), so that when we add 1 to a '9' digit, the carry to the next digit is happenning with us not having to do anything
