@@ -372,6 +372,185 @@ int main()
 ```
 -write somethinng about the speed
 ### Making use of SIMD intrinsics
+#### Basics
 Making use of this technology can make the code faster, but most of this is done by compiler already with high optimization like -O3.    
 The main reason why we're switching to this is to easily translate our code into ASM code later with no unnecessary intructions.  
-Let's start by implementing the most obvious solution: Represent out current number as a __mm256i, each byte representing a digit ('0' - '9'). If we represent each digit in numbers from 0 to 9 it gets very difficult to handle the carry, after some time we can figure out that it is the best to represent digits as 0 = 246, 9 = 255 (the highest value of 8-bit unsigned integer), so that when we add 1 to a '9' digit, the carry to the next digit is happenning with us not having to do anything
+Let's start by implementing the most obvious solution: Represent out current number as a __m256i, each byte representing a digit ('0' - '9').  
+If we represent each digit in numbers from 0 to 9 it gets very difficult to handle the carry, after some time we can figure out that it is the best to represent digits as 0 = 246, 9 = 255 (the highest value of 8-bit unsigned integer), so that when we add 1 to a '9' digit, the carry to the next digit is happenning with us not having to do anything (139 + 1 -> {247, 249, 255} + {0, 0, 1} = {247, 250, 0}).   
+The only thing we have to do after that is change all the zeroes to 246.  
+The next SIMD function that we are going to use a lot is _mm256_shuffle_epi8() or vpshufb which shuffles one __m256i based on the value of another. For example (assuming __m256i store 4 bytes each) _mm256_shuffle_epi8({246, 247, 248, 249}, {0, 1, 1, 3}) = {249, 248, 248, 246} 
+#### Introding the bytecode
+From now on we'll be using bytecode: we will first generate some kind of bytecode (for example : 0 1 4 5 -1 -2) for our program, with each byte representing some function/intructions that we will be doing.  
+At first this might seem useless but it will help us a lot later!
+#### Naive solution
+Let's start by implementing the naive solution using SIMD: store the number in __m256i (in 0 = 246, 9 = 255 format), increase it by 1 each line, handle the carry when needed, and copy it to the buffer using the shuffle.
+```c
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <immintrin.h>
+#include <fcntl.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+
+int digits, CODE_SIZE;
+
+__m256i number, shuffle_number, shuffle;
+__m256i ONE, VEC_198, VEC_246;
+
+const char Fizz[] = "Fizz\n", Buzz[] = "Buzz\n", FizzBuzz[] = "FizzBuzz\n";
+
+int8_t bytecode[500], *bytecode_ptr = bytecode;
+
+#define BUFFER_SIZE (1 << 20)
+
+char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], *current_buffer = buffer1, *buffer_ptr = buffer1;
+int buffer_in_use = 0;
+
+void set_constants()
+{
+    ONE = _mm256_set_epi64x(0, 0, 0, 1);
+    VEC_246 = _mm256_set1_epi8(246);
+    VEC_246 = _mm256_bsrli_epi128(VEC_246, 1);
+    VEC_198 = _mm256_set1_epi8(198);
+    shuffle = _mm256_set1_epi8(255);
+    shuffle = _mm256_slli_si256(shuffle, 1);
+    shuffle = _mm256_add_epi8(shuffle, _mm256_set_epi64x(0, 0, 0, 15));
+    shuffle = _mm256_slli_si256(shuffle, 1);
+}
+
+#define INCREASE {number = _mm256_add_epi64(number, ONE); shuffle_number = _mm256_shuffle_epi8(_mm256_sub_epi8(number, VEC_198), shuffle);}
+#define INCREASE_CARRY {number = _mm256_add_epi64(number, ONE); number = _mm256_max_epu8(number, VEC_246); shuffle_number = _mm256_shuffle_epi8(_mm256_sub_epi8(number, VEC_198), shuffle);}
+
+
+/*
+Bytecode meaning
+1: Copy fizz to the output buffer
+2: Copy buzz to the output buffer
+3: Copy fizzbuzz to the output buffer
+4: Copy the current number to the output buffer
+5: Increase the number by 1
+6: Handle the carry
+7: Copy '\n' to the output buffer
+-1 to -9: move output buffer -1 * N bytes to the right (with N being eqaul to current byte in out bytecode)
+*/
+
+void generate_bytecode(int from, int to)
+{
+    for (int i = from; i < to; i += 10)
+    {
+        int boundary = to < i + 10 ? to : i + 10;
+        for (int j = i; j < boundary; j++)
+        {
+            if (j % 3 == 0)
+            {
+                if (j % 5 == 0) 
+                {
+                    *bytecode_ptr++ = 3;
+                    *bytecode_ptr++ = -9;
+                }
+                else 
+                {
+                    *bytecode_ptr++ = 1;
+                    *bytecode_ptr++ = -5;
+                }
+            }
+            else if (j % 5 == 0)
+            {
+                *bytecode_ptr++ = 2;
+                *bytecode_ptr++ = -5;
+            }
+            else
+            {
+                *bytecode_ptr++ = 4;
+                *bytecode_ptr++ = -1 * digits;
+                *bytecode_ptr++ = 7;
+            }
+            *bytecode_ptr++ = 5;
+        }
+        *bytecode_ptr++ = 6;
+    }
+}
+
+void interpret_bytecode()
+{
+    for (int i = 0; i < CODE_SIZE; i++)
+    {
+        int8_t c = bytecode[i];
+        if (c == 1) memcpy(buffer_ptr, Fizz, 5);
+        else if (c == 2) memcpy(buffer_ptr, Buzz, 5);
+        else if (c == 3) memcpy(buffer_ptr, FizzBuzz, 9);
+        else if (c == 4) _mm256_storeu_si256((__m256i*)buffer_ptr, shuffle_number);
+        else if (c == 5) 
+        {
+            number = _mm256_add_epi64(number, ONE); 
+            shuffle_number = _mm256_shuffle_epi8(_mm256_sub_epi8(number, VEC_198), shuffle);
+        }
+        else if (c == 6)
+        {
+            number = _mm256_max_epu8(number, VEC_246); 
+            shuffle_number = _mm256_shuffle_epi8(_mm256_sub_epi8(number, VEC_198), shuffle);
+        }
+        else if (c == 7) *buffer_ptr++ = '\n';
+        else buffer_ptr += -1 * (c);
+    }
+}
+
+int main()
+{
+    printf("1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\n");
+    set_constants();
+    uint64_t line_number = 10, line_boundary = 100;
+    for (digits = 2; digits < 10; digits++)
+    {
+        bytecode_ptr = bytecode;
+        generate_bytecode(line_number, line_number + 30);
+        CODE_SIZE = bytecode_ptr - bytecode;
+        number = ONE;
+        for (int i = 0; i < digits - 1; i++) number = _mm256_slli_si256(number, 1);
+        number = _mm256_add_epi8(number, VEC_246);
+        shuffle = _mm256_slli_si256(shuffle, 1);
+        shuffle = _mm256_add_epi8(shuffle, _mm256_set_epi64x(0, 0, 0, digits - 1));
+        int STRING_SIZE = 94 + (16 * digits);
+        int RUNS, RUNS_TO_DIGIT, RUNS_TO_BUFFER;
+        while(1)
+        {
+            RUNS_TO_DIGIT = (line_boundary - line_number) / 30, RUNS_TO_BUFFER = (((current_buffer + BUFFER_SIZE) - buffer_ptr) / STRING_SIZE) + 1;
+            RUNS = RUNS_TO_DIGIT < RUNS_TO_BUFFER ? RUNS_TO_DIGIT : RUNS_TO_BUFFER;
+            if (RUNS == 0) break;
+            for (int i = 0; i < RUNS; i++) interpret_bytecode();
+            line_number += RUNS * 30;
+            if (buffer_ptr >= (current_buffer + BUFFER_SIZE))
+            {
+                int left_over = buffer_ptr - (current_buffer + BUFFER_SIZE);
+			    struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
+                while (BUFVEC.iov_len > 0) 
+                {
+                    int written = vmsplice(1, &BUFVEC, 1, 0);
+                    BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
+                    BUFVEC.iov_len -= written;
+                }
+                //fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+                if (buffer_in_use == 0)
+                {
+                    memcpy(buffer2, current_buffer + BUFFER_SIZE, left_over);
+                    current_buffer = buffer2;
+                }
+                else
+                {
+                    memcpy(buffer1, current_buffer + BUFFER_SIZE, left_over);
+                    current_buffer = buffer1;
+                }
+                buffer_ptr = current_buffer + left_over;
+            }
+        }
+        line_boundary *= 10;
+    }
+    fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+    return 0;
+}
+```
+In this solution we can most of the functions that we will use in the faster variant.
+#### Introding the bytecode and going faster
+Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)  
+We can fix it in the same way as we did before: create a big string and perform functions on it. However, now our string would be a __m256i array, each index holding 32 bytes.
