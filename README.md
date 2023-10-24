@@ -2,7 +2,7 @@
 Fast output for the first 10^9 lines of FizzBuzz
 
 # Sources
-Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
+Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html
 Rewriting your code in machine code and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
 
 ## Build
@@ -271,5 +271,25 @@ int main()
 	return 0;
 }
 ```
-This makes out program another 2.5 times faster and it is *at the moment* the final iteration of the program.
-~
+This makes out program another 2.5 times faster.
+### Speeding up Linux pipes
+After the last improvement we *again* run into the problem of the output being our bottleneck, and now it's much harder to figure out how to make it faster. 
+Fortunately, we are not the first people that run into this problem. Linux pipes and their speed were thoroughly researched by a person named Francesco Mazzoli and he has posted his result here: https://mazzo.li/posts/fast-pipes.html 
+#### Problems
+After reading his post we can see a lot of reasons why out current output is so slow.  
+The main problems being:  
+1. Each "fwrite" we do, we copy our output one extra time.  
+2. The default pipe size is 64KiB, page size is 4KiB. When the pipe gets full, we need to wait until it gets fully read until writing to it again.
+#### Solutions
+##### 1. Using vmsplice() so we don't copy the output when its not needed
+We can fix the first problem by replacing "fwrite()" with "vmsplice()" in out program which doesn't copy the output.
+As i've read, this function is buggy and poorly documented, so we need to take some precautions to make it work properly:
+1. This function returning doesn't mean that it has written the whole buffer, so we must not change the piped buffer and write to the additional one instead. We will interchange these 2 buffers after each function call to avoid producing incorrect output.
+2. Pipe size should be equal to the buffer size (both 2 buffers should be the same size) so when we write buffer to the pipe, it always fills the whole pipe and the pipe switches to read mode.
+##### 2. Making the pipe size bigger so we don't need to wait so much after each cycle
+We can achieve this with function "fcntl()" with F_SETPIPE_SZ flag being used. The optimal size may vary on the system and needs to tweaked a bit.  
+  
+Let's implement these functions into our solution and see how much faster it becomes!
+```
+
+```
