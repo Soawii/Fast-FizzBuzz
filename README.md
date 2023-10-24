@@ -551,6 +551,13 @@ int main()
 }
 ```
 In this solution we can most of the functions that we will use in the faster variant.
-#### Introding the bytecode and going faster
+#### Going faster
 Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)  
 We can fix it in the same way as we did before: create a big string and perform functions on it. However, now our string would be a __m256i array, each index holding 32 bytes.
+The best way to represent a string that i've found is: 
+1. represent characters with their negative ASCII value (this will include all Fizz, Buzz characters and out hard-coded least significant digit)
+2. everything else will be the position of a digit inside a number
+Example of this representation: 122\nFizz\n124\n -> {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...}
+This representation makes it possible for us to do the following:
+1. shuffle number by this string (or _mm256_shuffle_epi8(number, *this string*)). This produces makes our string to become 0 at places with negative values (because their most significant bit is 1), and at other places it will replace the indexes with the digits in number.
+Example: 122\nFizz\n124\n -> {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} -> {'1', '2', 0, 0, 0, 0, 0, 0, 0, '1', '2', 0, 0 ...}
