@@ -370,7 +370,7 @@ int main()
 	return 0;
 }
 ```
--write somethinng about the speed
+This makes the program run almost 2 times faster!
 ### Making use of SIMD intrinsics
 #### Basics
 Making use of this technology can make the code faster, but most of this is done by compiler already with high optimization like -O3.    
