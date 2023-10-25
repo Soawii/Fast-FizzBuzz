@@ -1,8 +1,6 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz
 
-# the-obvious-solution
-
 # Sources
 Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
