@@ -2,8 +2,10 @@
 Fast output for the first 10^9 lines of FizzBuzz
 
 # Sources
-Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
-Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
+Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html   
+Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction  
+ASM into opcode translation: https://defuse.ca/online-x86-assembler.htm
+SIMD intrinsics and their ASM counterparts: https://www.laruence.com/sse/
 
 # Important
 **Change the BUFFER_SIZE value in the program to your L2 processor cache, tweak it around a bit with different values (/2, x2, /4, x4 etc.), no clue how it would work on a different PC. Base value is 1MB**
