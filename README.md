@@ -900,6 +900,8 @@ Now, we can also see why we turned to SIMD, each of these functions is an intruc
 #include <stdalign.h>
 #include <fcntl.h>
 
+#define BUFFER_SIZE (1 << 20)
+
 __m256i number, shuffle, ascii_number;
 __m256i ONE, VEC_198, VEC_246;
 
@@ -918,7 +920,6 @@ int8_t bytecode[3000], * bytecode_ptr = bytecode;
 int CODE_SIZE;
 
 #define PAGE_SIZE 4096
-#define BUFFER_SIZE (1 << 20)
 
 alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], * current_buffer = buffer1, * buffer_ptr = buffer1;
 int buffer_in_use = 0;
