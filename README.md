@@ -4,7 +4,7 @@ Fast output for the first 10^9 lines of FizzBuzz
 # Sources
 Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html   
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction  
-ASM into opcode translation: https://defuse.ca/online-x86-assembler.htm
+ASM into opcode translation: https://defuse.ca/online-x86-assembler.htm  
 SIMD intrinsics and their ASM counterparts: https://www.laruence.com/sse/
 
 # Important
