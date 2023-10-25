@@ -23,7 +23,7 @@ If it doesn't:
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
 gcc FizzBuzz.c -o FizzBuzz -O2 -mavx2 -no-pie
-time ./FizzBuzz | pv > /dev/null
+./FizzBuzz | pv > /dev/null
 ```
 # Algorithm explanation (step by step)
 1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
