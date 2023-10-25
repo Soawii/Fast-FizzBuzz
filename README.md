@@ -26,6 +26,7 @@ time ./FizzBuzz | pv > /dev/null
 2. [Speeding up Linux pipes](#speeding-up-linux-pipes)  
 3. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
 4. [Turning our code into opcode or Just-In-Time compilation](#turning-our-code-into-opcode-or-just-in-time-compilation)
+5. [Final version of the program](#final-version-of-the-program)
 ## The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.  
 We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.  
@@ -879,8 +880,10 @@ int main()
 ## Turning our code into opcode or Just-In-Time compilation
 We have increased the performance good enough to move onto the final improvement - turn this into opcode, push it into executable chuck of memory and run it to avoid extra intructions.  
 This is the main reason why we introduced bytecode earlier, this makes it much easier to turn each bytecode byte into opcode and push it into memory.  
-This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance. However, now we will implement it ourselves.
+This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance.   
+However, now we will implement it ourselves.  
 Now, we can also see why we turned to SIMD, each of these functions is an intruction that is eaily translated into opcode.
+### Final version of the program
 ```c
 #define _GNU_SOURCE
 #include <stdio.h>
