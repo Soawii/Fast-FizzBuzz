@@ -1,8 +1,6 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz
 
-[Go to Real Cool Heading section](#the-obvious-solution)
-
 # Sources
 Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
@@ -24,6 +22,10 @@ gcc FizzBuzz.c -o FizzBuzz -O2 -march=native -mavx2 -no-pie -fno-pie
 time ./FizzBuzz | pv > /dev/null
 ```
 ## Algorithm explanation (step by step)
+1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
+2. [Speeding up Linux pipes](#speeding-up-linux-pipes)  
+3. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
+4. [Turning out code into opcode or Just-In-Time compilation](#turning-out-code-into-opcode-or-just-in-time-compilation)
 ### The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.  
 We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.  
@@ -553,11 +555,11 @@ int main()
     return 0;
 }
 ```
-In this solution we can most of the functions that we will use in the faster variant.
-#### Going faster
+In this solution we can most of the functions that we will use in the faster variant.  
+  
 Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)    
 We can fix it in the same way as we did before: create a big string and perform functions on it. However, now our string would be a __m256i array, each index holding 32 bytes.  
-##### "String" representation
+#### "String" representation
 The best way to represent a string that i've found is: 
 1. represent characters with their negative ASCII value (this will include all Fizz, Buzz characters and out hard-coded least significant digit)
 2. everything else will be the position of a digit inside a number  
@@ -771,6 +773,7 @@ int main()
     return 0;
 }
 ```
+#### Hard-coding hundrends-digit
 Looks good! However we still increment the number way too often, so we could hardcode the hundreds-digit into the string as well. This doesn't change our code that much but still increases its performance.  
 Below is only the part of the code because everything else is exactly the same as in the previous program.  
  ```c
@@ -873,7 +876,7 @@ int main()
     return 0;
 }
 ```
-##### Turning out code into opcode or Just-In-Time compilation
+### Turning out code into opcode or Just-In-Time compilation
 We have increased the performance good enough to move onto the final improvement - turn this into opcode, push it into executable chuck of memory and run it to avoid extra intructions.  
 This is the main reason why we introduced bytecode earlier, this makes it much easier to turn each bytecode byte into opcode and push it into memory.  
 This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance. However now, we will implement it ourselves.
