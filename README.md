@@ -22,7 +22,7 @@ If it doesn't:
 ```
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
-gcc FizzBuzz.c -o FizzBuzz -O2 -mavx2 -no-pie
+gcc FizzBuzz.c -o FizzBuzz -O2 -march=native -mavx2 -no-pie
 ./FizzBuzz | pv > /dev/null
 ```
 # Algorithm explanation (step by step)
