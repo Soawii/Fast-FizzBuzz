@@ -571,8 +571,8 @@ Example: 122\nFizz\n124\n -> {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 
   
 So now we have a string with ten->billions digits being in place, and to produce another chars the only thing we have to do is substruct the original string from the produced one (byte by byte).   
 So : {'1', '2', 0, 0, 0, 0, 0, 0, 0, '1', '2', 0, 0 ...} - {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} = {'0', '2', '2', '\n', 'F', 'i', 'z', 'z', '\n', '0', '2', '4', '\n' ...}.  
-Now we have a little problem, we can see that hundrends-digit is incorrect since it gets decreased by 1, and all digits after (thousands->billions) will also be incorrect because of that.  
-We can fix this by changing the previously-mentioned 198 offset, now we want it to be 1 bigger for each more significant digit so that out operations lead to the correct result. This will lead to out ascii-number being bigger by 1 in hundrends-digit, bigger by 2 in thousands-digit, bigger by 3 in tens-thousands-digit etc.  
+Now we have a little problem, we can see that hundreds-digit is incorrect since it gets decreased by 1, and all digits after (thousands->billions) will also be incorrect because of that.  
+We can fix this by changing the previously-mentioned 198 offset, now we want it to be 1 bigger for each more significant digit so that out operations lead to the correct result. This will lead to out ascii-number being bigger by 1 in hundreds-digit, bigger by 2 in thousands-digit, bigger by 3 in tens-thousands-digit etc.  
 So now if we take the previous example it would now wark like this:  
 1. (do the shuffle) {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} -> {'2', '2', 0, 0, 0, 0, 0, 0, 0, '2', '2', 0, 0 ...} (hundreds-digit ascii value is biffer by 1)
 2. (substract byte-by-byte) {'2', '2', 0, 0, 0, 0, 0, 0, 0, '2', '2', 0, 0 ...} ->  {'1', '2', '2', '\n', 'F', 'i', 'z', 'z', '\n', '1', '2', '4', '\n' ...}.  
@@ -773,7 +773,7 @@ int main()
     return 0;
 }
 ```
-### Hard-coding hundrends-digit
+### Hard-coding hundreds-digit
 Looks good! However we still increment the number way too often, so we could hardcode the hundreds-digit into the string as well. This doesn't change our code that much but still increases its performance.  
 Below is only the part of the code because everything else is exactly the same as in the previous program.  
  ```c
