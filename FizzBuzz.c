@@ -121,7 +121,7 @@ int main()
     uint64_t line_number = 100, line_boundary = 1000;
     for (digits = 3; digits < 10; digits++)
     {
-        for (int i = 0; i < 500; i++) shuffles[i] = _mm256_set1_epi8(0);
+        for (int i = 0; i < 500; i++) shuffles[i] = _mm256_setzero_si256();
         string_ptr = string;
         uint8_t shuffle_init[] = { 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
         for (int i = 100; i < 400; i += 10)
@@ -196,7 +196,7 @@ int main()
                     BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
                     BUFVEC.iov_len -= written;
                 }
-                //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
+                //fwrite(current_buffer, 1, BUFFER_SIZE, stdout); 
                 int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
                 if (buffer_in_use == 0)
                 {
