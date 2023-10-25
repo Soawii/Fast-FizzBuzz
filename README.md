@@ -5,7 +5,7 @@ Fast output for the first 10^9 lines of FizzBuzz
 Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
 
-## Build
+# Build
 The essential compiler flags: -mavx2 -no-pie. Everything else makes it faster depending on the system so should be changed around and tweaked a bit.
 It *should* work with this:  
 ```
@@ -21,12 +21,12 @@ cd FastFizzBuzz
 gcc FizzBuzz.c -o FizzBuzz -O2 -march=native -mavx2 -no-pie -fno-pie
 time ./FizzBuzz | pv > /dev/null
 ```
-## Algorithm explanation (step by step)
+# Algorithm explanation (step by step)
 1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
 2. [Speeding up Linux pipes](#speeding-up-linux-pipes)  
 3. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
-4. [Turning out code into opcode or Just-In-Time compilation](#turning-out-code-into-opcode-or-just-in-time-compilation)
-### The obvious solution
+4. [Turning our code into opcode or Just-In-Time compilation](#turning-our-code-into-opcode-or-just-in-time-compilation)
+## The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.  
 We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.  
 Here's the code for it:  
@@ -47,7 +47,7 @@ int main()
     return 0;
 }
 ```
-### Speeding up the output
+## Speeding up the output
 We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow?    
 The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls.   
 This is VERY innefective and we can fix it by implementing our own buffer with a much bigger size, writing to it instead of calling printf, and then outputting all of its contents into stdout when there's no more space.  
@@ -95,8 +95,8 @@ int main()
 }
 ```
 This runs almost three times faster than the previous program! However it is still very slow.    
-### Speeding up the algorithm
-#### Replacing sprintf() with memcpy()
+## Speeding up the algorithm
+### Replacing sprintf() with memcpy()
 We have dealt with the output speed, now we have to deal with the speed of the algorithm itself.    
 After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced.  
 We can replace it with memcpy(), but for that we need to store our current number as a string, let's do that.  
@@ -161,7 +161,7 @@ int main()
 }
 ```
 And that makes the program run 7 times faster!  
-#### Removing MOD and unrolling loops
+### Removing MOD and unrolling loops
 Now we can notice that the MOD (%) operation is costly and should be the next on the chopping block.  
 We can remove it because "Fizz, Buzz, Number etc." repeats itself every 15 lines, so we can simply unroll the loop, let's do it.  
 The one digit numbers can not fit into a 15-number cycle as there would be many unnecesary checks, we print them out first and start our cycle from 10.  
@@ -212,7 +212,7 @@ int main()
 }
 ```
 This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.  
-#### Reduce memcpy() calls 
+### Reduce memcpy() calls 
 The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.  
 But how can we achieve less calls?   
 The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.  
@@ -277,16 +277,16 @@ int main()
 }
 ```
 This makes out program another 2.5 times faster.
-### Speeding up Linux pipes
+## Speeding up Linux pipes
 After the last improvement we *again* run into the problem of the output being our bottleneck, and now it's much harder to figure out how to make it faster.   
 Fortunately, we are not the first people that run into this problem. Linux pipes and their speed were thoroughly researched by a person named Francesco Mazzoli and he has posted his result here: https://mazzo.li/posts/fast-pipes.html 
-#### Problems
+### Problems
 After reading his post we can see a lot of reasons why out current output is so slow.  
 The main problems being:  
 1. Each "fwrite" we do, we copy our output one extra time.  
 2. When the pipe gets full, we need to wait until it gets fully read until writing to it again. 
-#### Solutions
-##### 1. Using vmsplice() so we don't copy the output when its not needed
+### Solutions
+#### 1. Using vmsplice() so we don't copy the output when its not needed
 We can fix the first problem by replacing "fwrite()" with "vmsplice()" in out program which doesn't copy the output.  
 As i've read, this function is buggy and poorly documented, so we need to take some precautions to make it work properly:  
 1. This function returning doesn't mean that it has written the whole buffer, so we must not change the piped buffer and write to the additional one instead. We will interchange these 2 buffers after each function call to avoid producing incorrect output.  
@@ -376,18 +376,18 @@ int main()
 }
 ```
 This makes the program run almost 2 times faster!
-### Making use of SIMD intrinsics
-#### Basics
+## Making use of SIMD intrinsics
+### Basics
 Making use of this technology can make the code faster, but most of this is done by compiler already with high optimization like -O3.    
 The main reason why we're switching to this is to easily translate our code into ASM code later with no unnecessary intructions.  
 Let's start by implementing the most obvious solution: Represent out current number as a __m256i, each byte representing a digit ('0' - '9').  
 If we represent each digit in numbers from 0 to 9 it gets very difficult to handle the carry, after some time we can figure out that it is the best to represent digits as 0 = 246, 9 = 255 (the highest value of 8-bit unsigned integer), so that when we add 1 to a '9' digit, the carry to the next digit is happenning with us not having to do anything (139 + 1 -> {247, 249, 255} + {0, 0, 1} = {247, 250, 0}).   
 The only thing we have to do after that is change all the zeroes to 246.  
 The next SIMD function that we are going to use a lot is _mm256_shuffle_epi8() or vpshufb which shuffles one __m256i based on the value of another. For example (assuming __m256i store 4 bytes each) _mm256_shuffle_epi8({246, 247, 248, 249}, {0, 1, 1, 3}) = {249, 248, 248, 246} 
-#### Introding the bytecode
+### Introding the bytecode
 From now on we'll be using bytecode: we will first generate some kind of bytecode (for example : 0 1 4 5 -1 -2) for our program, with each byte representing some function/intructions that we will be doing.  
 At first this might seem useless but it will help us a lot later!
-#### Naive solution
+### Naive solution
 Let's start by implementing the naive solution using SIMD: store the number in __m256i (in 0 = 246, 9 = 255 format), increase it by 1 each line, handle the carry when needed, and copy it to the buffer using the shuffle.
 ```c
 #define _GNU_SOURCE
@@ -559,7 +559,7 @@ In this solution we can most of the functions that we will use in the faster var
   
 Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)    
 We can fix it in the same way as we did before: create a big string and perform functions on it. However, now our string would be a __m256i array, each index holding 32 bytes.  
-#### "String" representation
+### "String" representation
 The best way to represent a string that i've found is: 
 1. represent characters with their negative ASCII value (this will include all Fizz, Buzz characters and out hard-coded least significant digit)
 2. everything else will be the position of a digit inside a number  
@@ -773,7 +773,7 @@ int main()
     return 0;
 }
 ```
-#### Hard-coding hundrends-digit
+### Hard-coding hundrends-digit
 Looks good! However we still increment the number way too often, so we could hardcode the hundreds-digit into the string as well. This doesn't change our code that much but still increases its performance.  
 Below is only the part of the code because everything else is exactly the same as in the previous program.  
  ```c
@@ -876,10 +876,10 @@ int main()
     return 0;
 }
 ```
-### Turning out code into opcode or Just-In-Time compilation
+## Turning our code into opcode or Just-In-Time compilation
 We have increased the performance good enough to move onto the final improvement - turn this into opcode, push it into executable chuck of memory and run it to avoid extra intructions.  
 This is the main reason why we introduced bytecode earlier, this makes it much easier to turn each bytecode byte into opcode and push it into memory.  
-This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance. However now, we will implement it ourselves.
+This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance. However, now we will implement it ourselves.
 Now, we can also see why we turned to SIMD, each of these functions is an intruction that is eaily translated into opcode.
 ```c
 #define _GNU_SOURCE
@@ -1106,5 +1106,5 @@ int main()
     return 0;
 }
 ```
-The generate_opcode function is identical to interpret_bytecode from previous programs, however it only generates the opcode that is ran in the main loop of the program. It has to generate it only once per each digit since it changes only when the string length does.  
-This program is currently the fastest iteration, you can probably make it faster if you don't use the pipes but use some other technology but i don't know yet if that's allowed. :)
+The generate_opcode function is identical to interpret_bytecode from previous programs, however it only generates the opcode that is ran in the main loop of the program. It has to generate it only once per each digit since it changes only when the string length does.    
+This program is currently the fastest iteration, you can probably make it faster if you don't use the pipes but use some other technology but i don't know yet if that's allowed. :)  
