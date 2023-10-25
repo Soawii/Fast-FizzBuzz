@@ -2,7 +2,7 @@
 Fast output for the first 10^9 lines of FizzBuzz
 
 # Sources
-Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html
+Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
 
 ## Build
@@ -23,9 +23,9 @@ time ./FizzBuzz | pv > /dev/null
 ```
 ## Algorithm explanation (step by step)
 ### The obvious solution
-Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.
-We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.
-Here's the code for it:
+Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.  
+We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.  
+Here's the code for it:  
 ```c
 #include <stdio.h>
 int main()
@@ -44,9 +44,9 @@ int main()
 }
 ```
 ### Speeding up the output
-We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow?   
-The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls.  
-This is VERY innefective and we can fix it by implementing our own buffer with a much bigger size, writing to it instead of calling printf, and then outputting all of its contents into stdout when there's no more space.
+We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow?    
+The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls.   
+This is VERY innefective and we can fix it by implementing our own buffer with a much bigger size, writing to it instead of calling printf, and then outputting all of its contents into stdout when there's no more space.  
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -90,10 +90,10 @@ int main()
     return 0;
 }
 ```
-This runs almost three times faster than the previous program! However it is still very slow.  
+This runs almost three times faster than the previous program! However it is still very slow.    
 ### Speeding up the algorithm
 #### Replacing sprintf() with memcpy()
-We have dealt with the output speed, now we have to deal with the speed of the algorithm itself.   
+We have dealt with the output speed, now we have to deal with the speed of the algorithm itself.    
 After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced.  
 We can replace it with memcpy(), but for that we need to store our current number as a string, let's do that.  
 ```c
@@ -274,19 +274,19 @@ int main()
 ```
 This makes out program another 2.5 times faster.
 ### Speeding up Linux pipes
-After the last improvement we *again* run into the problem of the output being our bottleneck, and now it's much harder to figure out how to make it faster. 
+After the last improvement we *again* run into the problem of the output being our bottleneck, and now it's much harder to figure out how to make it faster.   
 Fortunately, we are not the first people that run into this problem. Linux pipes and their speed were thoroughly researched by a person named Francesco Mazzoli and he has posted his result here: https://mazzo.li/posts/fast-pipes.html 
 #### Problems
 After reading his post we can see a lot of reasons why out current output is so slow.  
 The main problems being:  
 1. Each "fwrite" we do, we copy our output one extra time.  
-2. The default pipe size is 64KiB, page size is 4KiB. When the pipe gets full, we need to wait until it gets fully read until writing to it again.
+2. When the pipe gets full, we need to wait until it gets fully read until writing to it again. 
 #### Solutions
 ##### 1. Using vmsplice() so we don't copy the output when its not needed
-We can fix the first problem by replacing "fwrite()" with "vmsplice()" in out program which doesn't copy the output.
-As i've read, this function is buggy and poorly documented, so we need to take some precautions to make it work properly:
-1. This function returning doesn't mean that it has written the whole buffer, so we must not change the piped buffer and write to the additional one instead. We will interchange these 2 buffers after each function call to avoid producing incorrect output.
-2. Pipe size should be equal to the buffer size (both 2 buffers should be the same size) so when we write buffer to the pipe, it always fills the whole pipe and the pipe switches to read mode.
+We can fix the first problem by replacing "fwrite()" with "vmsplice()" in out program which doesn't copy the output.  
+As i've read, this function is buggy and poorly documented, so we need to take some precautions to make it work properly:  
+1. This function returning doesn't mean that it has written the whole buffer, so we must not change the piped buffer and write to the additional one instead. We will interchange these 2 buffers after each function call to avoid producing incorrect output.  
+2. Pipe size should be equal to the buffer size (both 2 buffers should be the same size) so when we write buffer to the pipe, it always fills the whole pipe and the pipe switches to read mode.  
 ##### 2. Making the pipe size bigger so we don't need to wait so much after each cycle
 We can achieve this with function "fcntl()" with F_SETPIPE_SZ flag being used. The optimal size may vary on the system and needs to tweaked a bit.  
   
@@ -553,8 +553,8 @@ int main()
 ```
 In this solution we can most of the functions that we will use in the faster variant.
 #### Going faster
-Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)  
-We can fix it in the same way as we did before: create a big string and perform functions on it. However, now our string would be a __m256i array, each index holding 32 bytes.
+Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)    
+We can fix it in the same way as we did before: create a big string and perform functions on it. However, now our string would be a __m256i array, each index holding 32 bytes.  
 ##### "String" representation
 The best way to represent a string that i've found is: 
 1. represent characters with their negative ASCII value (this will include all Fizz, Buzz characters and out hard-coded least significant digit)
@@ -562,21 +562,20 @@ The best way to represent a string that i've found is:
 Example of this representation: 122\nFizz\n124\n -> {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...}  
   
 We will store one __m256i (let's call it number) with the tens-billions (we hard-code least significant digit into the string so that we don't have to increment it so often) digits of the number (represented in 246 format), another __m256i (ascii_number) that is equal to the (__m256i number) with each byte decreased by 198 so that 246 turns into 48 (which is ascii value of '0'), 247 into 49 (which is '1') etc.  
-This representation makes it possible for us to do the following:
-1. shuffle (__m256i ascii_number) by this string (or _mm256_shuffle_epi8(ascii_number, *this string*)). This makes our string to become 0 at places with negative values (because their most significant bit is 1), and at other places it will replace the indexes with the values in ascii_number.
+This representation makes it possible for us to do the following: shuffle (__m256i ascii_number) by this string (or _mm256_shuffle_epi8(ascii_number, *this string*)). This makes our string to become 0 at places with negative values (because their most significant bit is 1), and at other places it will replace the indexes with the values in ascii_number.  
 Example: 122\nFizz\n124\n -> {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} -> {'1', '2', 0, 0, 0, 0, 0, 0, 0, '1', '2', 0, 0 ...}
   
-So now we have a string with ten->billions digits being in place, and to produce another chars the only thing we have to do is substruct the original string from the produced one (byte by byte).
-So : {'1', '2', 0, 0, 0, 0, 0, 0, 0, '1', '2', 0, 0 ...} - {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} = {'0', '2', '2', '\n', 'F', 'i', 'z', 'z', '\n', '0', '2', '4', '\n' ...}.
-Now we have a little problem, we can see that hundrends-digit is incorrect since it gets decreased by 1, and all digits after (thousands->billions) will also be incorrect because of that.
-We can fix this by changing the previously-mentioned 198 offset, now we want it to be 1 bigger for each more significant digit so that out operations lead to the correct result. This will lead to out ascii-number being bigger by 1 in hundrends-digit, bigger by 2 in thousands-digit, bigger by 3 in tens-thousands-digit etc.
-So now if we take the previous example it would now wark like this:
+So now we have a string with ten->billions digits being in place, and to produce another chars the only thing we have to do is substruct the original string from the produced one (byte by byte).   
+So : {'1', '2', 0, 0, 0, 0, 0, 0, 0, '1', '2', 0, 0 ...} - {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} = {'0', '2', '2', '\n', 'F', 'i', 'z', 'z', '\n', '0', '2', '4', '\n' ...}.  
+Now we have a little problem, we can see that hundrends-digit is incorrect since it gets decreased by 1, and all digits after (thousands->billions) will also be incorrect because of that.  
+We can fix this by changing the previously-mentioned 198 offset, now we want it to be 1 bigger for each more significant digit so that out operations lead to the correct result. This will lead to out ascii-number being bigger by 1 in hundrends-digit, bigger by 2 in thousands-digit, bigger by 3 in tens-thousands-digit etc.  
+So now if we take the previous example it would now wark like this:  
 1. (do the shuffle) {1, 0, -'2', -'\n', -'F', -'i', -'z', -'z', -'\n', 1, 0, -'4', -'\n' ...} -> {'2', '2', 0, 0, 0, 0, 0, 0, 0, '2', '2', 0, 0 ...} (hundreds-digit ascii value is biffer by 1)
 2. (substract byte-by-byte) {'2', '2', 0, 0, 0, 0, 0, 0, 0, '2', '2', 0, 0 ...} ->  {'1', '2', '2', '\n', 'F', 'i', 'z', 'z', '\n', '1', '2', '4', '\n' ...}.  
-And now we have the correct output!  
-  
+And now we have the correct output!    
+    
 We will have to store this in array of __m256i (so each index holds 32 bytes). We will have to change the number each 10 lines, so some indexes must be smaller then 32 bytes so that we can increase the number after outputting the index and then go onto the next one.  
-So our whole program loop now lookds like this:
+So our whole program now looks like this:
 1. print first 10 lines
 2. go from digits 2 to 9 (including)
 3. generate the __m256i array for our current digit, generate the bytecode so that we know what to do
@@ -595,7 +594,8 @@ Let's implement that.
 
 __m256i number, shuffle, ascii_number;
 __m256i VEC_198, ONE, VEC_246;
-__m256i shuffles[50];
+
+__m256i shuffles[50]; 
 uint8_t shuffle_idx = 0;
 
 const char Fizz[] = "Fizz\n", Buzz[] = "Buzz\n", FizzBuzz[] = "FizzBuzz\n";
@@ -899,7 +899,7 @@ int digits;
 uint8_t* opcode, * opcode_ptr;
 typedef uint8_t* (*opcode_function)(uint8_t*, int);
 
-int8_t bytecode[2000], * bytecode_ptr = bytecode;
+int8_t bytecode[3000], * bytecode_ptr = bytecode;
 
 int CODE_SIZE;
 
@@ -909,7 +909,7 @@ int CODE_SIZE;
 alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], * current_buffer = buffer1, * buffer_ptr = buffer1;
 int buffer_in_use = 0;
 
-char string[2500], * string_ptr;
+char string[3000], * string_ptr;
 
 void set_constants()
 {
@@ -924,16 +924,17 @@ void set_constants()
 void generate_opcode()
 {
     opcode_ptr = opcode;
-    uint32_t offset = 0;
+    uint32_t offset = 0, rip_distance;
     __m256i* shuffles_ptr = shuffles;
-    *opcode_ptr++ = 0xC4; *opcode_ptr++ = 0x41; *opcode_ptr++ = 0x35; *opcode_ptr++ = 0xF8; *opcode_ptr++ = 0xEB; // vpsubb ymm13, ymm9, ymm11
-    uint8_t* start = opcode_ptr;
     for (int i = 0; i < CODE_SIZE; i++)
     {
         int8_t c = bytecode[i];
         if (c == 1)
         {
-            *opcode_ptr++ = 0xC5; *opcode_ptr++ = 0x7D; *opcode_ptr++ = 0x6F; *opcode_ptr++ = 0x35; get_rip_distance(shuffles_ptr); // vmovdqa ymm14, YMMWORD PTR [shuffles_ptr] (or vmovdqa ymm14, YMMWORD PTR [rip + ((uint8_t*)shuffles_ptr - (jit_ptr + 4))])
+            *opcode_ptr++ = 0xC5; *opcode_ptr++ = 0x7D; *opcode_ptr++ = 0x6F; *opcode_ptr++ = 0x35; // |
+            rip_distance = (uint8_t*)(shuffles_ptr) - (opcode_ptr + 4);                             // |
+            memcpy(opcode_ptr, &rip_distance, 4);                                                   // |
+            opcode_ptr += 4;                                                                        // | = vmovdqa ymm14, YMMWORD PTR [shuffles_ptr] (or vmovdqa ymm14, YMMWORD PTR [rip + ((uint8_t*)(shuffles_ptr) - (uint8_t*)(opcode_ptr + 4))]) 
             *opcode_ptr++ = 0xC4; *opcode_ptr++ = 0x42; *opcode_ptr++ = 0x15; *opcode_ptr++ = 0x00; *opcode_ptr++ = 0xFE;   // vpshufb ymm15, ymm13, ymm14
             *opcode_ptr++ = 0xC4; *opcode_ptr++ = 0x41; *opcode_ptr++ = 0x05; *opcode_ptr++ = 0xF8; *opcode_ptr++ = 0xFE;   // vpsubb ymm15, ymm15, ymm14
             *opcode_ptr++ = 0xC5; *opcode_ptr++ = 0x7E; *opcode_ptr++ = 0x7F; *opcode_ptr++ = 0xBF; memcpy(opcode_ptr, &offset, 4); opcode_ptr += 4;  // vmovdqu YMMWORD PTR [rdi + offset], ymm15
@@ -950,8 +951,14 @@ void generate_opcode()
     }
     *opcode_ptr++ = 0x48; *opcode_ptr++ = 0x81; *opcode_ptr++ = 0xC7; memcpy(opcode_ptr, &offset, 4); opcode_ptr += 4; // add rdi, offset
     *opcode_ptr++ = 0xFF; *opcode_ptr++ = 0xCE; // dec esi
-    *opcode_ptr++ = 0x0F; *opcode_ptr++ = 0x85; get_rip_distance(start); // jnz start
-    *opcode_ptr++ = 0xC5; *opcode_ptr++ = 0x7D; *opcode_ptr++ = 0x7F; *opcode_ptr++ = 0x0D; get_rip_distance(&number); // vmovdqa YMMWORD PTR [rip + number], ymm9
+    *opcode_ptr++ = 0x0F; *opcode_ptr++ = 0x85;                             // |
+    rip_distance = opcode - (opcode_ptr + 4);                               // |
+    memcpy(opcode_ptr, &rip_distance, 4);                                   // |          
+    opcode_ptr += 4;                                                        // | = jnz opcode
+    *opcode_ptr++ = 0xC5; *opcode_ptr++ = 0x7D; *opcode_ptr++ = 0x7F; *opcode_ptr++ = 0x0D; // |
+    rip_distance = (uint8_t*)(&number) - (opcode_ptr + 4);                                  // |             
+    memcpy(opcode_ptr, &rip_distance, 4);                                                   // |                            
+    opcode_ptr += 4;                                                                        // | = vmovdqa YMMWORD PTR [rip + number], ymm9
     *opcode_ptr++ = 0x48; *opcode_ptr++ = 0x89; *opcode_ptr++ = 0xF8; // mov rax, rdi
     *opcode_ptr++ = 0xC3; // ret
 }
@@ -1053,6 +1060,7 @@ int main()
                 "vmovdqa %1, %%ymm11\n\t"
                 "vmovdqa %2, %%ymm12\n\t"
                 "vmovdqa %3, %%ymm9\n\t"
+                "vpsubb %%ymm11, %%ymm9, %%ymm13"
                 :
             : "" (ONE),
                 "" (VEC_198),
@@ -1094,4 +1102,4 @@ int main()
 }
 ```
 The generate_opcode function is identical to interpret_bytecode from previous programs, however it only generates the opcode that is ran in the main loop of the program. It has to generate it only once per each digit since it changes only when the string length does.  
-This program is currently the fastest iteration, you can probably make it faster if you don't use the pipes but use some other technology but i don't know if that's allowed.  
+This program is currently the fastest iteration, you can probably make it faster if you don't use the pipes but use some other technology but i don't know yet if that's allowed. :)
