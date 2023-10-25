@@ -1,7 +1,7 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz
 
-#the-obvious-solution
+# the-obvious-solution
 
 # Sources
 Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html  
