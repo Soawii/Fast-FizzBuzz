@@ -384,10 +384,12 @@ This makes the program run almost 2 times faster!
 ## Making use of SIMD intrinsics
 ### Basics
 Making use of this technology can make the code faster, but most of this is done by compiler already with high optimization like -O3.    
-The main reason why we're switching to this is to easily translate our code into ASM code later with no unnecessary intructions.  
+The main reason why we're switching to this is to easily translate our code into ASM code later with no unnecessary intructions.   
+   
 Let's start by implementing the most obvious solution: Represent out current number as a __m256i, each byte representing a digit ('0' - '9').  
 If we represent each digit in numbers from 0 to 9 it gets very difficult to handle the carry, after some time we can figure out that it is the best to represent digits as 0 = 246, 9 = 255 (the highest value of 8-bit unsigned integer), so that when we add 1 to a '9' digit, the carry to the next digit is happenning with us not having to do anything (139 + 1 -> {247, 249, 255} + {0, 0, 1} = {247, 250, 0}).   
 The only thing we have to do after that is change all the zeroes to 246.  
+  
 The next SIMD function that we are going to use a lot is _mm256_shuffle_epi8() or vpshufb which shuffles one __m256i based on the value of another. For example (assuming __m256i store 4 bytes each) _mm256_shuffle_epi8({246, 247, 248, 249}, {0, 1, 1, 3}) = {249, 248, 248, 246} 
 ### Introding the bytecode
 From now on we'll be using bytecode: we will first generate some kind of bytecode (for example : 0 1 4 5 -1 -2) for our program, with each byte representing some function/intructions that we will be doing.  
