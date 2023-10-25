@@ -6,6 +6,7 @@ Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction
 
 # Build
+!!! Change the BUFFER_SIZE value in the program to your L2 processor cache, tweak it around a bit with different values, no clue how it would work on a different PC. !!!
 The essential compiler flags: -mavx2 -no-pie. Everything else makes it faster depending on the system so should be changed around and tweaked a bit.
 It *should* work with this:  
 ```
@@ -18,7 +19,7 @@ If it doesn't:
 ```
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
-gcc FizzBuzz.c -o FizzBuzz -O2 -march=native -mavx2 -no-pie -fno-pie
+gcc FizzBuzz.c -o FizzBuzz -O2 -mavx2 -no-pie
 time ./FizzBuzz | pv > /dev/null
 ```
 # Algorithm explanation (step by step)
@@ -904,7 +905,7 @@ const char Fizz[] = "Fizz\n", Buzz[] = "Buzz\n", FizzBuzz[] = "FizzBuzz\n";
 
 int digits;
 
-uint8_t* opcode, * opcode_ptr;
+uint8_t *opcode, *opcode_ptr;
 typedef uint8_t* (*opcode_function)(uint8_t*, int);
 
 int8_t bytecode[3000], * bytecode_ptr = bytecode;
@@ -926,8 +927,6 @@ void set_constants()
     VEC_246 = _mm256_set1_epi8(246);
     VEC_198 = _mm256_set_epi8(198, 198, 198, 198, 198, 198, 198, 190, 191, 192, 193, 194, 195, 196, 197, 198, 198, 198, 198, 198, 198, 198, 198, 190, 191, 192, 193, 194, 195, 196, 197, 198);
 }
-
-#define get_rip_distance(ptr) {uint32_t rip_distance = (uint8_t*)(ptr) - (uint8_t*)(opcode_ptr + 4); memcpy(opcode_ptr, &rip_distance, 4); opcode_ptr += 4;}
 
 void generate_opcode()
 {
