@@ -90,96 +90,101 @@ void fill_shuffles(int from, int to)
     *code_ptr++ = 2;
 }
 
-const char FIRST_TEN[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\n";
+const char FIRST_100_LINES[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz\n31\n32\nFizz\n34\nBuzz\nFizz\n37\n38\nFizz\nBuzz\n41\nFizz\n43\n44\nFizzBuzz\n46\n47\nFizz\n49\nBuzz\nFizz\n52\n53\nFizz\nBuzz\n56\nFizz\n58\n59\nFizzBuzz\n61\n62\nFizz\n64\nBuzz\nFizz\n67\n68\nFizz\nBuzz\n71\nFizz\n73\n74\nFizzBuzz\n76\n77\nFizz\n79\nBuzz\nFizz\n82\n83\nFizz\nBuzz\n86\nFizz\n88\n89\nFizzBuzz\n91\n92\nFizz\n94\nBuzz\nFizz\n97\n98\nFizz\n";
 
 int main()
 {
-    fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
-    set_constants();
-    uint64_t line_number = 10, line_boundary = 100;
-    memcpy(buffer_ptr, FIRST_TEN, strlen(FIRST_TEN));
-    buffer_ptr += strlen(FIRST_TEN);
-    for (digits = 2; digits < 4; digits++)
-    {
-        for (int i = 0; i < 50; i++) shuffles[i] = _mm256_set1_epi8(0);
-        string_ptr = string;
-        uint8_t shuffle_init[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
-        for (int i = 10; i < 40; i++)
-        {
-            if (i % 3 == 0)
-            {
-                if (i % 5 == 0)
-                {
-                    memcpy(string_ptr, FizzBuzz, 9);
-                    string_ptr += 9;
-                }
-                else
-                {
-                    memcpy(string_ptr, Fizz, 5);
-                    string_ptr += 5;
-                }
-            }
-            else if (i % 5 == 0)
-            {
-                memcpy(string_ptr, Buzz, 5);
-                string_ptr += 5;
-            }
-            else
-            {
-                memcpy(string_ptr, shuffle_init_ptr, digits + 1);
-                string_ptr += digits + 1;
-            }
-            if (shuffle_init[10] == '9') shuffle_init[10] = '0';
-            else shuffle_init[10]++;
-        }
-        code_ptr = code;
-        const int FIRST_BOUNDARY = 30 + (6 * digits), SECOND_BOUNDARY = 60 + (11 * digits), THIRD_BOUNDARY = 94 + (16 * digits);
-        fill_shuffles(0, FIRST_BOUNDARY);
-        fill_shuffles(FIRST_BOUNDARY, SECOND_BOUNDARY);
-        fill_shuffles(SECOND_BOUNDARY, THIRD_BOUNDARY);
-        CODE_SIZE = code_ptr - code;
-        shuffle_idx = 0;
-        number = ONE;
-        for (int i = 0; i < digits - 2; i++) number = _mm256_slli_si256(number, 1);
-        number = _mm256_add_epi8(number, VEC_246);
-        ascii_number = _mm256_sub_epi8(number, VEC_198);
-        uint64_t RUNS, RUNS_TO_DIGIT, RUNS_TO_BUFFER;
-        while (1)
-        {
-            RUNS_TO_DIGIT = (line_boundary - line_number) / 30;
-            RUNS_TO_BUFFER = ((current_buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
-            RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
-            if (RUNS == 0) break;
-            for (int i = 0; i < RUNS; i++) interpret_bytecode();
-            if (buffer_ptr >= current_buffer + BUFFER_SIZE)
-            {
-                 struct iovec BUFVEC = { current_buffer, BUFFER_SIZE };
-                 while (BUFVEC.iov_len > 0)
-                 {
-                     int written = vmsplice(1, &BUFVEC, 1, 0);
-                     BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                     BUFVEC.iov_len -= written;
-                 }
-                //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
-                int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
-                if (buffer_in_use == 0)
-                {
-                    memcpy(buffer2, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer2;
-                }
-                else
-                {
-                    memcpy(buffer1, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer1;
-                }
-                buffer_in_use = !buffer_in_use;
-                buffer_ptr = current_buffer + leftover;
-            }
-            line_number += RUNS * 30;
-        }
-        line_boundary *= 10;
-    }
-    fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
-    printf("1000000000\n");
-    return 0;
+   fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
+   set_constants();
+   memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
+   buffer_ptr += strlen(FIRST_100_LINES);
+   uint64_t line_number = 100, line_boundary = 1000;
+   for (digits = 3; digits < 10; digits++)
+   {
+       for (int i = 0; i < 500; i++) shuffles[i] = _mm256_set1_epi8(0);
+       string_ptr = string;
+       uint8_t shuffle_init[] = { 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
+       for (int i = 100; i < 400; i += 10)
+       {
+           for (int j = i; j < i + 10; j++)
+           {
+               if (j % 3 == 0)
+               {
+                   if (j % 5 == 0)
+                   {
+                       memcpy(string_ptr, FizzBuzz, 9);
+                       string_ptr += 9;
+                   }
+                   else
+                   {
+                       memcpy(string_ptr, Fizz, 5);
+                       string_ptr += 5;
+                   }
+               }
+               else if (j % 5 == 0)
+               {
+                   memcpy(string_ptr, Buzz, 5);
+                   string_ptr += 5;
+               }
+               else
+               {
+                   memcpy(string_ptr, shuffle_init_ptr, digits + 1);
+                   string_ptr += digits + 1;
+               }
+               if (shuffle_init[10] == '9') shuffle_init[10] = '0';
+               else shuffle_init[10]++;
+           }
+           if (shuffle_init[9] == '9') shuffle_init[9] = '0';
+           else shuffle_init[9]++;
+       }
+       code_ptr = code;
+       const int FIRST_BOUNDARY = 312 + (54 * digits), SECOND_BOUNDARY = 624 + (107 * digits), THIRD_BOUNDARY = 940 + (160 * digits);
+       fill_shuffles(0, FIRST_BOUNDARY);
+       fill_shuffles(FIRST_BOUNDARY, SECOND_BOUNDARY);
+       fill_shuffles(SECOND_BOUNDARY, THIRD_BOUNDARY);
+       CODE_SIZE = code_ptr - code;
+       shuffle_idx = 0;
+       number = ONE;
+       for (int i = 0; i < digits - 3; i++) number = _mm256_slli_si256(number, 1);
+       number = _mm256_add_epi8(number, VEC_246);
+       shuffle_number = _mm256_sub_epi8(number, VEC_198);
+       uint64_t RUNS, RUNS_TO_DIGIT = (line_boundary - line_number) / 300, RUNS_TO_BUFFER;
+       while (1)
+       {
+           RUNS_TO_BUFFER = ((current_buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
+           RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
+           if (RUNS == 0) break;
+           for (int i = 0; i < RUNS; i++) interpret_bytecode();
+           if (buffer_ptr >= current_buffer + BUFFER_SIZE)
+           {
+               struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
+               while (BUFVEC.iov_len > 0)
+               {
+                   int written = vmsplice(1, &BUFVEC, 1, 0);
+                   BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
+                   BUFVEC.iov_len -= written;
+               }
+               //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
+               int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
+               if (buffer_in_use == 0)
+               {
+                   memcpy(buffer2, current_buffer + BUFFER_SIZE, leftover);
+                   current_buffer = buffer2;
+               }
+               else
+               {
+                   memcpy(buffer1, current_buffer + BUFFER_SIZE, leftover);
+                   current_buffer = buffer1;
+               }
+               buffer_in_use = !buffer_in_use;
+               buffer_ptr = current_buffer + leftover;
+           }
+           line_number += RUNS * 300;
+           RUNS_TO_DIGIT -= RUNS;
+       }
+       line_boundary *= 10;
+   }
+   fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+   printf("1000000000\n");
+   return 0;
 }
