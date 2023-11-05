@@ -5,6 +5,8 @@
 #include <immintrin.h>
 #include <stdalign.h>
 
+#define BUFFER_SIZE 262144
+
 __m256i number, shuffle, ascii_number;
 __m256i ONE, VEC_198, VEC_246;
 
@@ -22,7 +24,6 @@ int8_t bytecode[3000], * bytecode_ptr = bytecode;
 
 int CODE_SIZE;
 
-#define BUFFER_SIZE 262144
 alignas(4096) char buffer[BUFFER_SIZE + 4096], * buffer_ptr = buffer;
 
 char string[3000], * string_ptr;
