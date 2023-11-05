@@ -1,14 +1,10 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz
 
-# Sources
-Speeding up Linux pipes: https://mazzo.li/posts/fast-pipes.html   
+# Sources   
 Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction  
 ASM into opcode translation: https://defuse.ca/online-x86-assembler.htm  
 SIMD intrinsics and their ASM counterparts: https://www.laruence.com/sse/
-
-# Important
-**Change the BUFFER_SIZE value in the program to your L2 processor cache, tweak it around a bit with different values (/2, x2, /4, x4 etc.), no clue how it would work on a different PC. Base value is 1MB**
 
 # Build
 The essential compiler flags: -mavx2 -no-pie.   
@@ -25,7 +21,7 @@ If it doesn't:
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
 gcc FizzBuzz.c -o FizzBuzz -O2 -mavx2 -no-pie
-./FizzBuzz | pv > /dev/null
+./FizzBuzz 2> /dev/null
 ```
 # Algorithm explanation (step by step)
 1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
