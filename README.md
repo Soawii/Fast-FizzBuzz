@@ -791,16 +791,12 @@ However, now we will implement it ourselves.
 Now, we can also see why we turned to SIMD, each of these functions is an intruction that is eaily translated into opcode.
 ### Final version of the program
 ```c
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <immintrin.h>
 #include <stdalign.h>
-#include <fcntl.h>
-
-#define BUFFER_SIZE (1 << 20)
 
 __m256i number, shuffle, ascii_number;
 __m256i ONE, VEC_198, VEC_246;
@@ -819,10 +815,8 @@ int8_t bytecode[3000], * bytecode_ptr = bytecode;
 
 int CODE_SIZE;
 
-#define PAGE_SIZE 4096
-
-alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], * current_buffer = buffer1, * buffer_ptr = buffer1;
-int buffer_in_use = 0;
+#define BUFFER_SIZE 262144
+alignas(4096) char buffer[BUFFER_SIZE + 4096], * buffer_ptr = buffer;
 
 char string[3000], * string_ptr;
 
@@ -906,7 +900,6 @@ const char FIRST_100_LINES[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\
 
 int main()
 {
-    fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
     set_constants();
     opcode = (uint8_t*)mmap(NULL, 10000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_32BIT, -1, 0);
     memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
@@ -914,7 +907,7 @@ int main()
     uint64_t line_number = 100, line_boundary = 1000;
     for (digits = 3; digits < 10; digits++)
     {
-        for (int i = 0; i < 500; i++) shuffles[i] = _mm256_set1_epi8(0);
+        for (int i = 0; i < 500; i++) shuffles[i] = _mm256_setzero_si256();
         string_ptr = string;
         uint8_t shuffle_init[] = { 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
         for (int i = 100; i < 400; i += 10)
@@ -966,7 +959,7 @@ int main()
         uint64_t RUNS, RUNS_TO_DIGIT = (line_boundary - line_number) / 300, RUNS_TO_BUFFER;
         while (1)
         {
-            RUNS_TO_BUFFER = ((current_buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
+            RUNS_TO_BUFFER = ((buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
             RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
             if (RUNS == 0) break;
             asm("vmovdqa %0, %%ymm10\n\t"
@@ -980,37 +973,20 @@ int main()
                 "" (VEC_246),
                 "" (number));
             buffer_ptr = f(buffer_ptr, RUNS);
-            if (buffer_ptr >= current_buffer + BUFFER_SIZE)
+            if (buffer_ptr > buffer + BUFFER_SIZE)
             {
-                struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
-                while (BUFVEC.iov_len > 0)
-                {
-                    int written = vmsplice(1, &BUFVEC, 1, 0);
-                    BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                    BUFVEC.iov_len -= written;
-                }
-                //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
-                int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
-                if (buffer_in_use == 0)
-                {
-                    memcpy(buffer2, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer2;
-                }
-                else
-                {
-                    memcpy(buffer1, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer1;
-                }
-                buffer_in_use = !buffer_in_use;
-                buffer_ptr = current_buffer + leftover;
+                int left_over = buffer_ptr - (buffer + BUFFER_SIZE);
+                fwrite(buffer, 1, BUFFER_SIZE, stderr); 
+                memcpy(buffer, buffer + BUFFER_SIZE, left_over);
+                buffer_ptr = buffer + left_over;
             }
             line_number += RUNS * 300;
             RUNS_TO_DIGIT -= RUNS;
         }
         line_boundary *= 10;
     }
-    fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
-    printf("1000000000\n");
+    fwrite(buffer, 1, buffer_ptr - buffer, stderr);
+    fprintf(stderr, "1000000000\n");
     return 0;
 }
 ```
