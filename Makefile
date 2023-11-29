@@ -1,5 +1,5 @@
 FizzBuzz: FizzBuzz.c
-	gcc FizzBuzz.c -o FizzBuzz -O2 -mavx2 -no-pie
+	gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie
 
 test: FizzBuzz
-	./FizzBuzz 2> /dev/null	
+	./FizzBuzz > /dev/null	
