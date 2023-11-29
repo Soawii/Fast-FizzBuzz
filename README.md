@@ -15,7 +15,7 @@ If it doesn't:
 ```
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
-gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie
+gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie -march=native
 ./FizzBuzz > /dev/null
 ```
 # Algorithm explanation (step by step)
