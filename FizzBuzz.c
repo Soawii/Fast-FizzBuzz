@@ -4,30 +4,30 @@
 #include <inttypes.h>
 #include <immintrin.h>
 #include <stdalign.h>
+#include <pthread.h>
+#include <semaphore.h>
+ 
+#define LINES_PER_THREAD 450000
+#define NUM_THREADS 4
 
-#define BUFFER_SIZE 262144
-
-__m256i number, shuffle, ascii_number;
 __m256i ONE, VEC_198, VEC_246;
-
-__m256i shuffles[1000];
+ 
+static __m256i shuffles[1000];
 uint8_t shuffle_idx = 0;
-
+ 
 const char Fizz[] = "Fizz\n", Buzz[] = "Buzz\n", FizzBuzz[] = "FizzBuzz\n";
-
+ 
 int digits;
-
+ 
 uint8_t *opcode, *opcode_ptr;
 typedef uint8_t* (*opcode_function)(uint8_t*, int);
-
+static opcode_function opcode_exec;
+ 
 int8_t bytecode[3000], * bytecode_ptr = bytecode;
-
 int CODE_SIZE;
-
-alignas(4096) char buffer[BUFFER_SIZE + 4096], * buffer_ptr = buffer;
-
+ 
 char string[3000], * string_ptr;
-
+ 
 void set_constants()
 {
     memset(bytecode, 0, sizeof(bytecode));
@@ -35,7 +35,7 @@ void set_constants()
     VEC_246 = _mm256_set1_epi8(246);
     VEC_198 = _mm256_set_epi8(198, 198, 198, 198, 198, 198, 198, 190, 191, 192, 193, 194, 195, 196, 197, 198, 198, 198, 198, 198, 198, 198, 198, 190, 191, 192, 193, 194, 195, 196, 197, 198);
 }
-
+ 
 void generate_opcode()
 {
     opcode_ptr = opcode;
@@ -66,18 +66,13 @@ void generate_opcode()
     }
     *opcode_ptr++ = 0x48; *opcode_ptr++ = 0x81; *opcode_ptr++ = 0xC7; memcpy(opcode_ptr, &offset, 4); opcode_ptr += 4; // add rdi, offset
     *opcode_ptr++ = 0xFF; *opcode_ptr++ = 0xCE; // dec esi
-    *opcode_ptr++ = 0x0F; *opcode_ptr++ = 0x85;                             // |
-    rip_distance = opcode - (opcode_ptr + 4);                               // |
-    memcpy(opcode_ptr, &rip_distance, 4);                                   // |          
-    opcode_ptr += 4;                                                        // | = jnz opcode
-    *opcode_ptr++ = 0xC5; *opcode_ptr++ = 0x7D; *opcode_ptr++ = 0x7F; *opcode_ptr++ = 0x0D; // |
-    rip_distance = (uint8_t*)(&number) - (opcode_ptr + 4);                                  // |             
-    memcpy(opcode_ptr, &rip_distance, 4);                                                   // |                            
-    opcode_ptr += 4;                                                                        // | = vmovdqa YMMWORD PTR [rip + number], ymm9
-    *opcode_ptr++ = 0x48; *opcode_ptr++ = 0x89; *opcode_ptr++ = 0xF8; // mov rax, rdi
+    *opcode_ptr++ = 0x0F; *opcode_ptr++ = 0x85; // |
+    rip_distance = opcode - (opcode_ptr + 4);   // |
+    memcpy(opcode_ptr, &rip_distance, 4);       // |          
+    opcode_ptr += 4;                            // | = jnz opcode
     *opcode_ptr++ = 0xC3; // ret
 }
-
+ 
 void fill_shuffles(int from, int to)
 {
     for (int i = from; i < to; i += 32)
@@ -103,18 +98,68 @@ void fill_shuffles(int from, int to)
     }
     *bytecode_ptr++ = 2;
 }
+ 
+typedef struct {
+    char* thread_buffer;
+    int buffer_len;
+    int start_number;
+    int end_number;
+    int runs;
+    int thread;
+    sem_t work;
+    sem_t idle;
+    __m256i number;
+    char pad[86];
+} arguments_struct;
+ 
+#define MAX_DIGITS 10
+#define BUFFER_SIZE (LINES_PER_THREAD / 300 * STRING_LEN)
 
+void* thread_func(void* void_arguments)
+{
+    arguments_struct* arguments = (arguments_struct*)void_arguments;
+    for(;;)
+    {
+        sem_wait(&arguments->work);
+        const int start_number = arguments->start_number;
+        arguments->number = _mm256_set_epi8(246, 246, 246, 246, 246, 246, 246, 246, 246, (start_number % 1000000000 / 100000000) + 246, (start_number % 100000000 / 10000000) + 246, (start_number % 10000000 / 1000000) + 246, (start_number % 1000000 / 100000) + 246, (start_number % 100000 / 10000) + 246, (start_number % 10000 / 1000) + 246, (start_number % 1000 / 100) + 246, 246, 246, 246, 246, 246, 246, 246, 246, 246, (start_number % 1000000000 / 100000000) + 246, (start_number % 100000000 / 10000000) + 246, (start_number % 10000000 / 1000000) + 246, (start_number % 1000000 / 100000) + 246, (start_number % 100000 / 10000) + 246, (start_number % 10000 / 1000) + 246, (start_number % 1000 / 100) + 246);
+        asm("vmovdqa %0, %%ymm10\n\t"
+                "vmovdqa %1, %%ymm11\n\t"
+                "vmovdqa %2, %%ymm12\n\t"
+                "vmovdqa %3, %%ymm9\n\t"
+                "vpsubb %%ymm11, %%ymm9, %%ymm13\n\t"
+                :
+            : "" (ONE),
+                "" (VEC_198),
+                "" (VEC_246),
+                "" (arguments->number));
+        opcode_exec(arguments->thread_buffer, arguments->runs);
+        sem_post(&arguments->idle);
+    }
+    pthread_exit(NULL);
+}
+ 
 const char FIRST_100_LINES[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz\n31\n32\nFizz\n34\nBuzz\nFizz\n37\n38\nFizz\nBuzz\n41\nFizz\n43\n44\nFizzBuzz\n46\n47\nFizz\n49\nBuzz\nFizz\n52\n53\nFizz\nBuzz\n56\nFizz\n58\n59\nFizzBuzz\n61\n62\nFizz\n64\nBuzz\nFizz\n67\n68\nFizz\nBuzz\n71\nFizz\n73\n74\nFizzBuzz\n76\n77\nFizz\n79\nBuzz\nFizz\n82\n83\nFizz\nBuzz\n86\nFizz\n88\n89\nFizzBuzz\n91\n92\nFizz\n94\nBuzz\nFizz\n97\n98\nFizz\n";
-
+ 
 int main()
 {
+    pthread_t threads[NUM_THREADS];
+    alignas(256) arguments_struct thread_args[NUM_THREADS];
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        thread_args[i].thread = i;
+        sem_init(&thread_args[i].work, 0, 0);
+        sem_init(&thread_args[i].idle, 0, 0);
+        thread_args[i].thread_buffer = malloc((LINES_PER_THREAD / 300) * (940 + (160 * 9)));
+    }
     set_constants();
     opcode = (uint8_t*)mmap(NULL, 10000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_32BIT, -1, 0);
-    memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
-    buffer_ptr += strlen(FIRST_100_LINES);
+    fwrite(FIRST_100_LINES, 1, sizeof(FIRST_100_LINES), stdout);
     uint64_t line_number = 100, line_boundary = 1000;
-    for (digits = 3; digits < 10; digits++)
+    for (int thread = 0; thread < NUM_THREADS; thread++) pthread_create(&threads[thread], NULL, thread_func, (void*)(&thread_args[thread]));
+    for (digits = 3; digits < MAX_DIGITS; digits++)
     {
+        const int STRING_LEN = 940 + (160 * digits);
         for (int i = 0; i < 500; i++) shuffles[i] = _mm256_setzero_si256();
         string_ptr = string;
         uint8_t shuffle_init[] = { 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
@@ -152,48 +197,51 @@ int main()
             else shuffle_init[9]++;
         }
         bytecode_ptr = bytecode;
+        shuffle_idx = 0;
         const int FIRST_BOUNDARY = 312 + (54 * digits), SECOND_BOUNDARY = 624 + (107 * digits), THIRD_BOUNDARY = 940 + (160 * digits);
         fill_shuffles(0, FIRST_BOUNDARY);
         fill_shuffles(FIRST_BOUNDARY, SECOND_BOUNDARY);
         fill_shuffles(SECOND_BOUNDARY, THIRD_BOUNDARY);
         CODE_SIZE = bytecode_ptr - bytecode;
-        shuffle_idx = 0;
-        number = ONE;
-        for (int i = 0; i < digits - 3; i++) number = _mm256_slli_si256(number, 1);
-        number = _mm256_add_epi8(number, VEC_246);
-        ascii_number = _mm256_sub_epi8(number, VEC_198);
         generate_opcode();
-        opcode_function f = opcode;
-        uint64_t RUNS, RUNS_TO_DIGIT = (line_boundary - line_number) / 300, RUNS_TO_BUFFER;
-        while (1)
+        opcode_exec = opcode;
+        const int runs_to_buffer = (BUFFER_SIZE / STRING_LEN), runs_to_digit = (line_boundary - line_number) / 300;
+        int runs_per_thread = (runs_to_digit < runs_to_buffer ? runs_to_digit : runs_to_buffer) / NUM_THREADS;
+        int THREADS_TO_DO = NUM_THREADS;
+        if (runs_per_thread == 0)
         {
-            RUNS_TO_BUFFER = ((buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
-            RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
-            if (RUNS == 0) break;
-            asm("vmovdqa %0, %%ymm10\n\t"
-                "vmovdqa %1, %%ymm11\n\t"
-                "vmovdqa %2, %%ymm12\n\t"
-                "vmovdqa %3, %%ymm9\n\t"
-                "vpsubb %%ymm11, %%ymm9, %%ymm13"
-                :
-            : "" (ONE),
-                "" (VEC_198),
-                "" (VEC_246),
-                "" (number));
-            buffer_ptr = f(buffer_ptr, RUNS);
-            if (buffer_ptr > buffer + BUFFER_SIZE)
+            runs_per_thread = runs_to_digit;
+            THREADS_TO_DO = 1;
+        }
+        int temp_line_number = line_number;
+        for (int thread = 0; thread < THREADS_TO_DO; thread++)
+        {
+            thread_args[thread].start_number = temp_line_number;
+            thread_args[thread].end_number = temp_line_number + (runs_per_thread * 300);
+            thread_args[thread].runs = runs_per_thread;
+            thread_args[thread].buffer_len = runs_per_thread * STRING_LEN;
+            temp_line_number += runs_per_thread * 300;
+        }
+        for (int thread = 0; thread < THREADS_TO_DO; thread++) sem_post(&thread_args[thread].work);
+        while(line_number < line_boundary)
+        {
+            for (int thread = 0; thread < THREADS_TO_DO; thread++) 
             {
-                int left_over = buffer_ptr - (buffer + BUFFER_SIZE);
-                fwrite(buffer, 1, BUFFER_SIZE, stderr); 
-                memcpy(buffer, buffer + BUFFER_SIZE, left_over);
-                buffer_ptr = buffer + left_over;
+                if (thread_args[thread].start_number >= line_boundary) continue;
+                sem_wait(&thread_args[thread].idle);
+                line_number = thread_args[thread].end_number;
+                fwrite(thread_args[thread].thread_buffer, 1, thread_args[thread].buffer_len, stdout);
+                thread_args[thread].start_number += (runs_per_thread * THREADS_TO_DO * 300);
+                if (thread_args[thread].start_number >= line_boundary) continue;
+                thread_args[thread].end_number = thread_args[thread].start_number + (runs_per_thread * 300);
+                if (thread_args[thread].end_number > line_boundary) thread_args[thread].end_number = line_boundary;
+                thread_args[thread].runs = (thread_args[thread].end_number - thread_args[thread].start_number) / 300;
+                thread_args[thread].buffer_len = thread_args[thread].runs * STRING_LEN;
+                sem_post(&thread_args[thread].work);
             }
-            line_number += RUNS * 300;
-            RUNS_TO_DIGIT -= RUNS;
         }
         line_boundary *= 10;
     }
-    fwrite(buffer, 1, buffer_ptr - buffer, stderr);
-    fprintf(stderr, "1000000000\n");
+    fprintf(stdout, "1000000000\n");
     return 0;
 }
