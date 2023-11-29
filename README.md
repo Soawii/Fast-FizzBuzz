@@ -1,11 +1,6 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz
 
-# Sources   
-Rewriting your code in opcode and running it (or Just-In-Time compilation): https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction  
-ASM into opcode translation: https://defuse.ca/online-x86-assembler.htm  
-SIMD intrinsics and their ASM counterparts: https://www.laruence.com/sse/
-
 # Build
 The essential compiler flags: -mavx2 -no-pie.   
 Everything else makes it faster depending on the system so should be changed around and tweaked a bit.
@@ -20,8 +15,8 @@ If it doesn't:
 ```
 git clone https://github.com/Soawii/FastFizzBuzz  
 cd FastFizzBuzz  
-gcc FizzBuzz.c -o FizzBuzz -O2 -mavx2 -no-pie
-./FizzBuzz 2> /dev/null
+gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie
+./FizzBuzz > /dev/null
 ```
 # Algorithm explanation (step by step)
 1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
