@@ -113,7 +113,7 @@ typedef struct {
 } arguments_struct;
  
 #define MAX_DIGITS 10
-#define BUFFER_SIZE (LINES_PER_THREAD / 300 * STRING_LEN)
+#define BUFFER_SIZE (LINES_PER_THREAD / 300 * STRING_LEN + 1024)
 
 void* thread_func(void* void_arguments)
 {
@@ -150,7 +150,7 @@ int main()
         thread_args[i].thread = i;
         sem_init(&thread_args[i].work, 0, 0);
         sem_init(&thread_args[i].idle, 0, 0);
-        thread_args[i].thread_buffer = malloc((LINES_PER_THREAD / 300) * (940 + (160 * 9)));
+        thread_args[i].thread_buffer = malloc((LINES_PER_THREAD / 300) * (940 + (160 * 9)) + 1024);
     }
     set_constants();
     opcode = (uint8_t*)mmap(NULL, 10000, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANON | MAP_32BIT, -1, 0);
