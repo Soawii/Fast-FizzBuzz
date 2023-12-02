@@ -7,7 +7,7 @@
 #include <pthread.h>
 #include <semaphore.h>
  
-#define LINES_PER_THREAD 450000
+#define LINES_PER_THREAD 450000 // has to be a multiple of 300
 #define NUM_THREADS 4
 
 __m256i ONE, VEC_198, VEC_246;
