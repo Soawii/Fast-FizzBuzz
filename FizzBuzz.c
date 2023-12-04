@@ -106,7 +106,7 @@ typedef struct {
     int end_number;
     int runs;
     int thread;
-    sem_t work;
+    pthread_spinlock_t work;
     sem_t idle;
     __m256i number;
     char pad[86];
@@ -117,12 +117,13 @@ typedef struct {
 
 void* thread_func(void* void_arguments)
 {
-    arguments_struct* arguments = (arguments_struct*)void_arguments;
+    arguments_struct* ref_arguments = (arguments_struct*)void_arguments;
     for(;;)
     {
-        sem_wait(&arguments->work);
-        const int start_number = arguments->start_number;
-        arguments->number = _mm256_set_epi8(246, 246, 246, 246, 246, 246, 246, 246, 246, (start_number % 1000000000 / 100000000) + 246, (start_number % 100000000 / 10000000) + 246, (start_number % 10000000 / 1000000) + 246, (start_number % 1000000 / 100000) + 246, (start_number % 100000 / 10000) + 246, (start_number % 10000 / 1000) + 246, (start_number % 1000 / 100) + 246, 246, 246, 246, 246, 246, 246, 246, 246, 246, (start_number % 1000000000 / 100000000) + 246, (start_number % 100000000 / 10000000) + 246, (start_number % 10000000 / 1000000) + 246, (start_number % 1000000 / 100000) + 246, (start_number % 100000 / 10000) + 246, (start_number % 10000 / 1000) + 246, (start_number % 1000 / 100) + 246);
+        while (pthread_spin_trylock(&ref_arguments->work)) continue;
+        arguments_struct arguments = *ref_arguments;
+        const int start_number = arguments.start_number;
+        arguments.number = _mm256_set_epi8(246, 246, 246, 246, 246, 246, 246, 246, 246, (start_number % 1000000000 / 100000000) + 246, (start_number % 100000000 / 10000000) + 246, (start_number % 10000000 / 1000000) + 246, (start_number % 1000000 / 100000) + 246, (start_number % 100000 / 10000) + 246, (start_number % 10000 / 1000) + 246, (start_number % 1000 / 100) + 246, 246, 246, 246, 246, 246, 246, 246, 246, 246, (start_number % 1000000000 / 100000000) + 246, (start_number % 100000000 / 10000000) + 246, (start_number % 10000000 / 1000000) + 246, (start_number % 1000000 / 100000) + 246, (start_number % 100000 / 10000) + 246, (start_number % 10000 / 1000) + 246, (start_number % 1000 / 100) + 246);
         asm("vmovdqa %0, %%ymm10\n\t"
                 "vmovdqa %1, %%ymm11\n\t"
                 "vmovdqa %2, %%ymm12\n\t"
@@ -132,9 +133,9 @@ void* thread_func(void* void_arguments)
             : "" (ONE),
                 "" (VEC_198),
                 "" (VEC_246),
-                "" (arguments->number));
-        opcode_exec(arguments->thread_buffer, arguments->runs);
-        sem_post(&arguments->idle);
+                "" (arguments.number));
+        opcode_exec(arguments.thread_buffer, arguments.runs);
+        sem_post(&ref_arguments->idle);
     }
     pthread_exit(NULL);
 }
@@ -148,7 +149,8 @@ int main()
     for (int i = 0; i < NUM_THREADS; i++)
     {
         thread_args[i].thread = i;
-        sem_init(&thread_args[i].work, 0, 0);
+        pthread_spin_init(&thread_args[i].work, PTHREAD_PROCESS_PRIVATE);
+        pthread_spin_lock(&thread_args[i].work);
         sem_init(&thread_args[i].idle, 0, 0);
         thread_args[i].thread_buffer = malloc((LINES_PER_THREAD / 300) * (940 + (160 * 9)) + 1024);
     }
@@ -222,7 +224,7 @@ int main()
             thread_args[thread].buffer_len = runs_per_thread * STRING_LEN;
             temp_line_number += runs_per_thread * 300;
         }
-        for (int thread = 0; thread < THREADS_TO_DO; thread++) sem_post(&thread_args[thread].work);
+        for (int thread = 0; thread < THREADS_TO_DO; thread++) pthread_spin_unlock(&thread_args[thread].work);
         while(line_number < line_boundary)
         {
             for (int thread = 0; thread < THREADS_TO_DO; thread++) 
@@ -237,7 +239,7 @@ int main()
                 if (thread_args[thread].end_number > line_boundary) thread_args[thread].end_number = line_boundary;
                 thread_args[thread].runs = (thread_args[thread].end_number - thread_args[thread].start_number) / 300;
                 thread_args[thread].buffer_len = thread_args[thread].runs * STRING_LEN;
-                sem_post(&thread_args[thread].work);
+                pthread_spin_unlock(&thread_args[thread].work);
             }
         }
         line_boundary *= 10;
