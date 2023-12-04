@@ -5,7 +5,6 @@
 #include <immintrin.h>
 #include <stdalign.h>
 #include <pthread.h>
-#include <semaphore.h>
  
 #define LINES_PER_THREAD 450000 // has to be a multiple of 300
 #define NUM_THREADS 4
@@ -107,7 +106,7 @@ typedef struct {
     int runs;
     int thread;
     pthread_spinlock_t work;
-    sem_t idle;
+    pthread_mutex_t idle;
     __m256i number;
     char pad[86];
 } arguments_struct;
@@ -118,7 +117,7 @@ typedef struct {
 void* thread_func(void* void_arguments)
 {
     arguments_struct* ref_arguments = (arguments_struct*)void_arguments;
-    for(;;)
+    while(1)
     {
         while (pthread_spin_trylock(&ref_arguments->work)) continue;
         arguments_struct arguments = *ref_arguments;
@@ -135,7 +134,7 @@ void* thread_func(void* void_arguments)
                 "" (VEC_246),
                 "" (arguments.number));
         opcode_exec(arguments.thread_buffer, arguments.runs);
-        sem_post(&ref_arguments->idle);
+        pthread_mutex_unlock(&ref_arguments->idle);
     }
     pthread_exit(NULL);
 }
@@ -151,7 +150,8 @@ int main()
         thread_args[i].thread = i;
         pthread_spin_init(&thread_args[i].work, PTHREAD_PROCESS_PRIVATE);
         pthread_spin_lock(&thread_args[i].work);
-        sem_init(&thread_args[i].idle, 0, 0);
+        pthread_mutex_init(&thread_args[i].idle, NULL);
+        pthread_mutex_lock(&thread_args[i].idle);
         thread_args[i].thread_buffer = malloc((LINES_PER_THREAD / 300) * (940 + (160 * 9)) + 1024);
     }
     set_constants();
@@ -230,7 +230,7 @@ int main()
             for (int thread = 0; thread < THREADS_TO_DO; thread++) 
             {
                 if (thread_args[thread].start_number >= line_boundary) continue;
-                sem_wait(&thread_args[thread].idle);
+                pthread_mutex_lock(&thread_args[thread].idle);
                 line_number = thread_args[thread].end_number;
                 fwrite(thread_args[thread].thread_buffer, 1, thread_args[thread].buffer_len, stdout);
                 thread_args[thread].start_number += (runs_per_thread * THREADS_TO_DO * 300);
