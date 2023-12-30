@@ -13,7 +13,7 @@ Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines o
 | Intrinsics1 | 11.2s |
 | Intrinsics2 | 0.74s |
 | Intrinsics3_SingleThreaded | 0.254s |
-| FizzBuzz (Intrinsics3_MultiThreaded) | 0.087s |
+| FizzBuzz.c (Intrinsics3_MultiThreaded) | 0.087s |
 # Build
 Compile FizzBuzz.c with this:
 ```
