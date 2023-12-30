@@ -2,7 +2,6 @@
 Fast output for the first 10^9 lines of FizzBuzz, output redirected to /dev/null
 ## Why was this made?
 Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines of output in less then 0.1 seconds. I found it fun and decided to try it out!
-
 # Build
 Compile with this:
 ```
@@ -12,7 +11,9 @@ Run:
 ```
 ./FizzBuzz > /dev/null
 ```
-# Algorithm explanation (step by step)
+# Short algorithm explanation
+We are first making a very fast single-threaded program, which is fast because of SIMD usage and translating our algorithm into machine code. Then we are multi-threading it to make the fastest version of the program.
+# Algorithm explanation (with every major speed-up)
 1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
 2. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
 3. [Turning our code into opcode or Just-In-Time compilation](#turning-our-code-into-opcode-or-just-in-time-compilation)
@@ -204,7 +205,7 @@ int main()
 }
 ```
 This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.  
-### Reduce memcpy() calls 
+### Reducing memcpy() calls 
 The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.  
 But how can we achieve less calls?   
 The first thing that comes to mind is to create a big string with some number of lines of FizzBuzz and memcpy it to the output buffer each cycle, let's try to achieve it.  
@@ -280,7 +281,7 @@ If we represent each digit in numbers from 0 to 9 it gets very difficult to hand
 The only thing we have to do after that is change all the zeroes to 246.  
   
 The next SIMD function that we are going to use a lot is _mm256_shuffle_epi8() or vpshufb which shuffles one __m256i based on the value of another. For example (assuming __m256i store 4 bytes each) _mm256_shuffle_epi8({246, 247, 248, 249}, {0, 1, 1, 3}) = {249, 248, 248, 246} 
-### Introding the bytecode
+### Introducing the bytecode
 From now on we'll be using bytecode: we will first generate some kind of bytecode (for example : 0 1 4 5 -1 -2) for our program, with each byte representing some function/intructions that we will be doing.  
 At first this might seem useless but it will help us a lot later!
 ### Naive solution
@@ -778,7 +779,7 @@ This is the main reason why we introduced bytecode earlier, this makes it much e
 This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance.   
 However, now we will implement it ourselves.  
 Now, we can also see why we turned to SIMD, each of these functions is an intruction that is eaily translated into opcode.
-### This is the faster single-threaded solution that i could do, it works in 0.25 seconds.
+### This is the fastest single-threaded solution that i could do, it works in 0.25 seconds on my PC.
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -991,8 +992,8 @@ Now that we made a really fast single-threaded solution, we can finally move to 
 #include <stdalign.h>
 #include <pthread.h>
  
-#define LINES_PER_THREAD 450000 // has to be a multiple of 300
-#define NUM_THREADS 4
+#define LINES_PER_THREAD 450000 // has to be a multiple of 300, change it up to fit your PC better
+#define NUM_THREADS 4 // change according to your PC
 
 __m256i ONE, VEC_198, VEC_246;
  
