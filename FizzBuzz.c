@@ -7,7 +7,7 @@
 #include <pthread.h>
  
 #define LINES_PER_THREAD 450000 // has to be a multiple of 300, should be changed around to fit your PC
-#define NUM_THREADS 4 // should be changed to fit your PC
+#define NUM_THREADS 4 // change according to your PC
 
 __m256i ONE, VEC_198, VEC_246;
  
