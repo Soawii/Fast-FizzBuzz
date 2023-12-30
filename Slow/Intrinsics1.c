@@ -134,17 +134,7 @@ int main()
             if (buffer_ptr >= (current_buffer + BUFFER_SIZE))
             {
                 fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
-                if (buffer_in_use == 0)
-                {
-                    memcpy(buffer2, current_buffer + BUFFER_SIZE, left_over);
-                    current_buffer = buffer2;
-                }
-                else
-                {
-                    memcpy(buffer1, current_buffer + BUFFER_SIZE, left_over);
-                    current_buffer = buffer1;
-                }
-                buffer_ptr = current_buffer + left_over;
+                buffer_ptr = current_buffer;
             }
         }
         line_boundary *= 10;
