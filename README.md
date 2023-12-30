@@ -1,50 +1,49 @@
 # FastFizzBuzz
-Fast output for the first 10^9 lines of FizzBuzz
+Fast output for the first 10^9 lines of FizzBuzz, output redirected to /dev/null
+## Why was this made?
+Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines of output in less then 0.1 seconds. I found it fun and decided to try it out!
 
 # Build
-The essential compiler flags: -mavx2 -no-pie.   
-Everything else makes it faster depending on the system so should be changed around and tweaked a bit.
-It *should* work with this:  
+Compile with this:
 ```
-git clone https://github.com/Soawii/FastFizzBuzz  
-cd FastFizzBuzz  
-make  
-make test  
+gcc FizzBuzz.c -o FizzBuzz -pthread -mavx2 -no-pie -march=native
 ```
-If it doesn't:
+Run:
 ```
-git clone https://github.com/Soawii/FastFizzBuzz  
-cd FastFizzBuzz  
-gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie -march=native
 ./FizzBuzz > /dev/null
 ```
 # Algorithm explanation (step by step)
 1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
-2. [Speeding up Linux pipes](#speeding-up-linux-pipes)  
 3. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
 4. [Turning our code into opcode or Just-In-Time compilation](#turning-our-code-into-opcode-or-just-in-time-compilation)
 5. [Final version of the program](#final-version-of-the-program)
 ## The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.  
 We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.  
-Here's the code for it:  
-```c
-#include <stdio.h>
-int main()
-{
-    for (int i = 1; i <= 1000000000; i++)
-    {
-        if (i % 3 == 0)
-        {
-            if (i % 5 == 0) printf("FizzBuzz\n");
-            else printf("Fizz\n");
-        }
-        else if (i % 5 == 0) printf("Buzz\n");
-        else printf("%i\n", i);
-    }
-    return 0;
-}
-```
+Here's the code for it:
+<details> 
+  <summary>
+	  code 
+  </summary>
+	   ```c
+		#include <stdio.h>
+		int main()
+		{
+		    for (int i = 1; i <= 1000000000; i++)
+		    {
+		        if (i % 3 == 0)
+		        {
+		            if (i % 5 == 0) printf("FizzBuzz\n");
+		            else printf("Fizz\n");
+		        }
+		        else if (i % 5 == 0) printf("Buzz\n");
+		        else printf("%i\n", i);
+		    }
+		    return 0;
+		}
+		``` 
+</details>
+
 ## Speeding up the output
 We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow?    
 The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls.   
