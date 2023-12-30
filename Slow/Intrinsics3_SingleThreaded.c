@@ -194,6 +194,6 @@ int main()
         line_boundary *= 10;
     }
     fwrite(buffer, 1, buffer_ptr - buffer, stdout);
-    fprintf(stderr, "1000000000\n");
+    fprintf(stdout, "1000000000\n");
     return 0;
 }
