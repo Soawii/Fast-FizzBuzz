@@ -1,7 +1,5 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <immintrin.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
@@ -135,15 +133,7 @@ int main()
             line_number += RUNS * 30;
             if (buffer_ptr >= (current_buffer + BUFFER_SIZE))
             {
-                int left_over = buffer_ptr - (current_buffer + BUFFER_SIZE);
-			    struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
-                while (BUFVEC.iov_len > 0) 
-                {
-                    int written = vmsplice(1, &BUFVEC, 1, 0);
-                    BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                    BUFVEC.iov_len -= written;
-                }
-                //fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+                fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
                 if (buffer_in_use == 0)
                 {
                     memcpy(buffer2, current_buffer + BUFFER_SIZE, left_over);
