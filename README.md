@@ -7,7 +7,7 @@ Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines o
 | :---: | :----------: 	| :-----------------: | :---------------: |
 | 57.3s | 44.4s         | 5.2s                | 4.6s	   	  |
 
-| Intrinsics1 | Intrinsics2 | Intrinsics3_SingleThreaded   | FizzBuzz |
+| Intrinsics1 | Intrinsics2 | Intrinsics3_SingleThreaded   | FizzBuzz (Intrinsics3_MultiThreaded) |
 | :---------: | :---------: |	 :----------------------:  | :------: |
 | 11.2s       | 0.74s       |	 0.254s			   |  0.087s  |
 # Build
