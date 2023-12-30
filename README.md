@@ -15,9 +15,17 @@ Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines o
 | Intrinsics3_SingleThreaded | 0.254s |
 | FizzBuzz (Intrinsics3_MultiThreaded) | 0.087s |
 # Build
-Compile with this:
+Compile FizzBuzz.c with this:
 ```
 gcc FizzBuzz.c -o FizzBuzz -pthread -mavx2 -no-pie -march=native
+```
+Compile all naive implementations with this:
+```
+gcc Naive.c -o Naive -O3 -march=native
+```
+Compile all 'Intrinsic' implementations with this:
+```
+gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie -march=native -O3
 ```
 Run:
 ```
