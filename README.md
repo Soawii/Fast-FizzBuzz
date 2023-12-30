@@ -9,7 +9,18 @@ Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines o
 
 | Intrinsics1 | Intrinsics2 | Intrinsics3_SingleThreaded   | FizzBuzz (Intrinsics3_MultiThreaded) |
 | :---------: | :---------: |	 :----------------------:  | :------: |
-| 11.2s       | 0.74s       |	 0.254s			   |  0.087s  |
+| 11.2s       | 0.74s       |	 0.254s			   |  0.087s  |  
+  
+| Name | Time to complete |
+| :---: | :--------------: |
+| Naive | 57.3s |
+| Naive2_Buffer | 44.4s |
+| Naive3_StringNumber | 5.2s |
+| Naive4_LoopUnroll | 4.6s |
+| Intrinsics1 | 11.2s |
+| Intrinsics2 | 0.74s |
+| Intrinsics3_SingleThreaded | 0.254s |
+| FizzBuzz (Intrinsics3_MultiThreaded) | 0.087s |
 # Build
 Compile with this:
 ```
@@ -295,10 +306,8 @@ At first this might seem useless but it will help us a lot later!
 ### Naive solution
 Let's start by implementing the naive solution using SIMD: store the number in __m256i (in 0 = 246, 9 = 255 format), increase it by 1 each line, handle the carry when needed, and copy it to the buffer using the shuffle.
 ```c
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <immintrin.h>
-#include <fcntl.h>
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
@@ -432,26 +441,8 @@ int main()
             line_number += RUNS * 30;
             if (buffer_ptr >= (current_buffer + BUFFER_SIZE))
             {
-                int left_over = buffer_ptr - (current_buffer + BUFFER_SIZE);
-			    struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
-                while (BUFVEC.iov_len > 0) 
-                {
-                    int written = vmsplice(1, &BUFVEC, 1, 0);
-                    BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                    BUFVEC.iov_len -= written;
-                }
-                //fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
-                if (buffer_in_use == 0)
-                {
-                    memcpy(buffer2, current_buffer + BUFFER_SIZE, left_over);
-                    current_buffer = buffer2;
-                }
-                else
-                {
-                    memcpy(buffer1, current_buffer + BUFFER_SIZE, left_over);
-                    current_buffer = buffer1;
-                }
-                buffer_ptr = current_buffer + left_over;
+                fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+                buffer_ptr = current_buffer;
             }
         }
         line_boundary *= 10;
@@ -490,38 +481,39 @@ So our whole program now looks like this:
 3. generate the __m256i array for our current digit, generate the bytecode so that we know what to do
 4. interpret the bytecode and run in until the digit end with some output inbetween  
 
-Let's implement that.
+### Hard-coding hundreds-digit
+We still increment the number way more often then we need to, so we could hardcode the hundreds-digit into the string as well. This doesn't change our code that much but still increases its performance.   
+
+Let's implement both these ideas.
 ```c
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <immintrin.h>
 #include <stdalign.h>
-#include <fcntl.h>
 
 __m256i number, shuffle, ascii_number;
 __m256i VEC_198, ONE, VEC_246;
 
-__m256i shuffles[50]; 
+__m256i shuffles[5000]; 
 uint8_t shuffle_idx = 0;
 
 const char Fizz[] = "Fizz\n", Buzz[] = "Buzz\n", FizzBuzz[] = "FizzBuzz\n";
 
 int digits;
 
-int8_t code[200], * code_ptr = code;
+int8_t code[20000], * code_ptr = code;
 
 int CODE_SIZE;
 
 #define PAGE_SIZE 4096
 #define BUFFER_SIZE (1 << 20)
 
-alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], * current_buffer = buffer1, * buffer_ptr = buffer1;
+alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 2048], buffer2[BUFFER_SIZE + 2048], * current_buffer = buffer1, * buffer_ptr = buffer1;
 int buffer_in_use = 0;
 
-char string[2000], * string_ptr;
+char string[20000], * string_ptr;
 
 void set_constants()
 {
@@ -584,210 +576,92 @@ void fill_shuffles(int from, int to)
     *code_ptr++ = 2;
 }
 
-const char FIRST_TEN[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\n";
-
-int main()
-{
-    fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
-    set_constants();
-    uint64_t line_number = 10, line_boundary = 100;
-    memcpy(buffer_ptr, FIRST_TEN, strlen(FIRST_TEN));
-    buffer_ptr += strlen(FIRST_TEN);
-    for (digits = 2; digits < 4; digits++)
-    {
-        for (int i = 0; i < 50; i++) shuffles[i] = _mm256_set1_epi8(0);
-        string_ptr = string;
-        uint8_t shuffle_init[] = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
-        for (int i = 10; i < 40; i++)
-        {
-            if (i % 3 == 0)
-            {
-                if (i % 5 == 0)
-                {
-                    memcpy(string_ptr, FizzBuzz, 9);
-                    string_ptr += 9;
-                }
-                else
-                {
-                    memcpy(string_ptr, Fizz, 5);
-                    string_ptr += 5;
-                }
-            }
-            else if (i % 5 == 0)
-            {
-                memcpy(string_ptr, Buzz, 5);
-                string_ptr += 5;
-            }
-            else
-            {
-                memcpy(string_ptr, shuffle_init_ptr, digits + 1);
-                string_ptr += digits + 1;
-            }
-            if (shuffle_init[10] == '9') shuffle_init[10] = '0';
-            else shuffle_init[10]++;
-        }
-        code_ptr = code;
-        const int FIRST_BOUNDARY = 30 + (6 * digits), SECOND_BOUNDARY = 60 + (11 * digits), THIRD_BOUNDARY = 94 + (16 * digits);
-        fill_shuffles(0, FIRST_BOUNDARY);
-        fill_shuffles(FIRST_BOUNDARY, SECOND_BOUNDARY);
-        fill_shuffles(SECOND_BOUNDARY, THIRD_BOUNDARY);
-        CODE_SIZE = code_ptr - code;
-        shuffle_idx = 0;
-        number = ONE;
-        for (int i = 0; i < digits - 2; i++) number = _mm256_slli_si256(number, 1);
-        number = _mm256_add_epi8(number, VEC_246);
-        ascii_number = _mm256_sub_epi8(number, VEC_198);
-        uint64_t RUNS, RUNS_TO_DIGIT, RUNS_TO_BUFFER;
-        while (1)
-        {
-            RUNS_TO_DIGIT = (line_boundary - line_number) / 30;
-            RUNS_TO_BUFFER = ((current_buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
-            RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
-            if (RUNS == 0) break;
-            for (int i = 0; i < RUNS; i++) interpret_bytecode();
-            if (buffer_ptr >= current_buffer + BUFFER_SIZE)
-            {
-                 struct iovec BUFVEC = { current_buffer, BUFFER_SIZE };
-                 while (BUFVEC.iov_len > 0)
-                 {
-                     int written = vmsplice(1, &BUFVEC, 1, 0);
-                     BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                     BUFVEC.iov_len -= written;
-                 }
-                //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
-                int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
-                if (buffer_in_use == 0)
-                {
-                    memcpy(buffer2, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer2;
-                }
-                else
-                {
-                    memcpy(buffer1, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer1;
-                }
-                buffer_in_use = !buffer_in_use;
-                buffer_ptr = current_buffer + leftover;
-            }
-            line_number += RUNS * 30;
-        }
-        line_boundary *= 10;
-    }
-    fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
-    printf("1000000000\n");
-    return 0;
-}
-```
-### Hard-coding hundreds-digit
-Looks good! However we still increment the number way too often, so we could hardcode the hundreds-digit into the string as well. This doesn't change our code that much but still increases its performance.  
-Below is only the part of the code because everything else is exactly the same as in the previous program.  
- ```c
 const char FIRST_100_LINES[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\nFizz\n22\n23\nFizz\nBuzz\n26\nFizz\n28\n29\nFizzBuzz\n31\n32\nFizz\n34\nBuzz\nFizz\n37\n38\nFizz\nBuzz\n41\nFizz\n43\n44\nFizzBuzz\n46\n47\nFizz\n49\nBuzz\nFizz\n52\n53\nFizz\nBuzz\n56\nFizz\n58\n59\nFizzBuzz\n61\n62\nFizz\n64\nBuzz\nFizz\n67\n68\nFizz\nBuzz\n71\nFizz\n73\n74\nFizzBuzz\n76\n77\nFizz\n79\nBuzz\nFizz\n82\n83\nFizz\nBuzz\n86\nFizz\n88\n89\nFizzBuzz\n91\n92\nFizz\n94\nBuzz\nFizz\n97\n98\nFizz\n";
 
 int main()
 {
-    fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
-    set_constants();
-    memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
-    buffer_ptr += strlen(FIRST_100_LINES);
-    uint64_t line_number = 100, line_boundary = 1000;
-    for (digits = 3; digits < 10; digits++)
-    {
-        for (int i = 0; i < 500; i++) shuffles[i] = _mm256_set1_epi8(0);
-        string_ptr = string;
-        uint8_t shuffle_init[] = { 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
-        for (int i = 100; i < 400; i += 10)
-        {
-            for (int j = i; j < i + 10; j++)
-            {
-                if (j % 3 == 0)
-                {
-                    if (j % 5 == 0)
-                    {
-                        memcpy(string_ptr, FizzBuzz, 9);
-                        string_ptr += 9;
-                    }
-                    else
-                    {
-                        memcpy(string_ptr, Fizz, 5);
-                        string_ptr += 5;
-                    }
-                }
-                else if (j % 5 == 0)
-                {
-                    memcpy(string_ptr, Buzz, 5);
-                    string_ptr += 5;
-                }
-                else
-                {
-                    memcpy(string_ptr, shuffle_init_ptr, digits + 1);
-                    string_ptr += digits + 1;
-                }
-                if (shuffle_init[10] == '9') shuffle_init[10] = '0';
-                else shuffle_init[10]++;
-            }
-            if (shuffle_init[9] == '9') shuffle_init[9] = '0';
-            else shuffle_init[9]++;
-        }
-        code_ptr = code;
-        const int FIRST_BOUNDARY = 312 + (54 * digits), SECOND_BOUNDARY = 624 + (107 * digits), THIRD_BOUNDARY = 940 + (160 * digits);
-        fill_shuffles(0, FIRST_BOUNDARY);
-        fill_shuffles(FIRST_BOUNDARY, SECOND_BOUNDARY);
-        fill_shuffles(SECOND_BOUNDARY, THIRD_BOUNDARY);
-        CODE_SIZE = code_ptr - code;
-        shuffle_idx = 0;
-        number = ONE;
-        for (int i = 0; i < digits - 3; i++) number = _mm256_slli_si256(number, 1);
-        number = _mm256_add_epi8(number, VEC_246);
-        shuffle_number = _mm256_sub_epi8(number, VEC_198);
-        uint64_t RUNS, RUNS_TO_DIGIT = (line_boundary - line_number) / 300, RUNS_TO_BUFFER;
-        while (1)
-        {
-            RUNS_TO_BUFFER = ((current_buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
-            RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
-            if (RUNS == 0) break;
-            for (int i = 0; i < RUNS; i++) interpret_bytecode();
-            if (buffer_ptr >= current_buffer + BUFFER_SIZE)
-            {
-                struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
-                while (BUFVEC.iov_len > 0)
-                {
-                    int written = vmsplice(1, &BUFVEC, 1, 0);
-                    BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                    BUFVEC.iov_len -= written;
-                }
-                //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
-                int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
-                if (buffer_in_use == 0)
-                {
-                    memcpy(buffer2, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer2;
-                }
-                else
-                {
-                    memcpy(buffer1, current_buffer + BUFFER_SIZE, leftover);
-                    current_buffer = buffer1;
-                }
-                buffer_in_use = !buffer_in_use;
-                buffer_ptr = current_buffer + leftover;
-            }
-            line_number += RUNS * 300;
-            RUNS_TO_DIGIT -= RUNS;
-        }
-        line_boundary *= 10;
-    }
-    fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
-    printf("1000000000\n");
-    return 0;
+   set_constants();
+   memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
+   buffer_ptr += strlen(FIRST_100_LINES);
+   uint64_t line_number = 100, line_boundary = 1000;
+   for (digits = 3; digits < 10; digits++)
+   {
+       for (int i = 0; i < 500; i++) shuffles[i] = _mm256_set1_epi8(0);
+       string_ptr = string;
+       uint8_t shuffle_init[] = { 8, 7, 6, 5, 4, 3, 2, 1, 0, '0', '0', '\n' }, * shuffle_init_ptr = shuffle_init + 11 - digits;
+       for (int i = 100; i < 400; i += 10)
+       {
+           for (int j = i; j < i + 10; j++)
+           {
+               if (j % 3 == 0)
+               {
+                   if (j % 5 == 0)
+                   {
+                       memcpy(string_ptr, FizzBuzz, 9);
+                       string_ptr += 9;
+                   }
+                   else
+                   {
+                       memcpy(string_ptr, Fizz, 5);
+                       string_ptr += 5;
+                   }
+               }
+               else if (j % 5 == 0)
+               {
+                   memcpy(string_ptr, Buzz, 5);
+                   string_ptr += 5;
+               }
+               else
+               {
+                   memcpy(string_ptr, shuffle_init_ptr, digits + 1);
+                   string_ptr += digits + 1;
+               }
+               if (shuffle_init[10] == '9') shuffle_init[10] = '0';
+               else shuffle_init[10]++;
+           }
+           if (shuffle_init[9] == '9') shuffle_init[9] = '0';
+           else shuffle_init[9]++;
+       }
+       code_ptr = code;
+       const int FIRST_BOUNDARY = 312 + (54 * digits), SECOND_BOUNDARY = 624 + (107 * digits), THIRD_BOUNDARY = 940 + (160 * digits);
+       fill_shuffles(0, FIRST_BOUNDARY);
+       fill_shuffles(FIRST_BOUNDARY, SECOND_BOUNDARY);
+       fill_shuffles(SECOND_BOUNDARY, THIRD_BOUNDARY);
+       CODE_SIZE = code_ptr - code;
+       shuffle_idx = 0;
+       number = ONE;
+       for (int i = 0; i < digits - 3; i++) number = _mm256_slli_si256(number, 1);
+       number = _mm256_add_epi8(number, VEC_246);
+       ascii_number = _mm256_sub_epi8(number, VEC_198);
+       uint64_t RUNS, RUNS_TO_DIGIT = (line_boundary - line_number) / 300, RUNS_TO_BUFFER;
+       while (1)
+       {
+           RUNS_TO_BUFFER = ((current_buffer + BUFFER_SIZE) - buffer_ptr) / THIRD_BOUNDARY + 1;
+           RUNS = RUNS_TO_BUFFER < RUNS_TO_DIGIT ? RUNS_TO_BUFFER : RUNS_TO_DIGIT;
+           if (RUNS == 0) break;
+           for (int i = 0; i < RUNS; i++) interpret_bytecode();
+           if (buffer_ptr >= current_buffer + BUFFER_SIZE)
+           {
+               fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+               buffer_ptr = current_buffer;
+           }
+           line_number += RUNS * 300;
+           RUNS_TO_DIGIT -= RUNS;
+       }
+       line_boundary *= 10;
+   }
+   fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+   printf("1000000000\n");
+   return 0;
 }
 ```
 ## Turning our code into opcode or Just-In-Time compilation
-We have increased the performance good enough to move onto the final improvement - turn this into opcode, push it into executable chuck of memory and run it to avoid extra intructions.  
+We have increased the performance well enough to move onto the final improvement - turn this into opcode, push it into executable chuck of memory and run it to avoid extra intructions.  
 This is the main reason why we introduced bytecode earlier, this makes it much easier to turn each bytecode byte into opcode and push it into memory.  
 This technique is called Just-In-Time compilation ( https://eli.thegreenplace.net/2013/11/05/how-to-jit-an-introduction ), where the sensitive blocks of code get turned into bytecode and translated into machine code to improve performance.   
 However, now we will implement it ourselves.  
 Now, we can also see why we turned to SIMD, each of these functions is an intruction that is eaily translated into opcode.
-### This is the fastest single-threaded solution that i could do, it works in 0.25 seconds on my PC.
+### This is the fastest single-threaded solution that i could do, it works in ~0.25 seconds on my PC.
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -795,6 +669,8 @@ Now, we can also see why we turned to SIMD, each of these functions is an intruc
 #include <inttypes.h>
 #include <immintrin.h>
 #include <stdalign.h>
+
+#define BUFFER_SIZE 262144
 
 __m256i number, shuffle, ascii_number;
 __m256i ONE, VEC_198, VEC_246;
@@ -813,7 +689,6 @@ int8_t bytecode[3000], * bytecode_ptr = bytecode;
 
 int CODE_SIZE;
 
-#define BUFFER_SIZE 262144
 alignas(4096) char buffer[BUFFER_SIZE + 4096], * buffer_ptr = buffer;
 
 char string[3000], * string_ptr;
@@ -903,7 +778,7 @@ int main()
     memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
     buffer_ptr += strlen(FIRST_100_LINES);
     uint64_t line_number = 100, line_boundary = 1000;
-    for (digits = 3; digits < 10; digits++)
+    for (digits = 3; digits < 10; digits++) // YEK
     {
         for (int i = 0; i < 500; i++) shuffles[i] = _mm256_setzero_si256();
         string_ptr = string;
@@ -984,13 +859,13 @@ int main()
         line_boundary *= 10;
     }
     fwrite(buffer, 1, buffer_ptr - buffer, stdout);
-    fprintf(stderr, "1000000000\n");
+    fprintf(stdout, "1000000000\n");
     return 0;
 }
 ```
 ## Multi-threading 
-Now that we made a really fast single-threaded solution, we can finally move to multi-threading. This program isn't too dificult to multi-thread, each thread has to simply produce output for a certain amount of lines, wait for each other thread to finish, and output everything in order.  
-### This is the final implementation, it works in 0.08 seconds, but can be much faster on a better PC that can make use of more threads.
+Now that we have made a really fast single-threaded solution, we can finally move to multi-threading. This program isn't too dificult to multi-thread, each thread has to simply produce output for a certain amount of lines, wait for each other thread to finish, and output everything in order.  
+### This is the final implementation, it works in ~0.08 seconds, but can be much faster on a better PC that can make use of more threads.
 ```c
 #include <stdio.h>
 #include <string.h>
