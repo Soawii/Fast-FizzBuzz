@@ -3,15 +3,8 @@ Fast output for the first 10^9 lines of FizzBuzz, output redirected to /dev/null
 ## Why was this made?
 Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines of output in less then 0.1 seconds. I found it fun and decided to try it out!
 ## Stats
-| Naive | Naive2_Buffer | Naive3_StringNumber | Naive4_LoopUnroll |
-| :---: | :----------: 	| :-----------------: | :---------------: |
-| 57.3s | 44.4s         | 5.2s                | 4.6s	   	  |
-
-| Intrinsics1 | Intrinsics2 | Intrinsics3_SingleThreaded   | FizzBuzz (Intrinsics3_MultiThreaded) |
-| :---------: | :---------: |	 :----------------------:  | :------: |
-| 11.2s       | 0.74s       |	 0.254s			   |  0.087s  |  
   
-| Name | Time to complete |
+| Program name | Time to complete |
 | :---: | :--------------: |
 | Naive | 57.3s |
 | Naive2_Buffer | 44.4s |
