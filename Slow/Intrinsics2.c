@@ -1,33 +1,31 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <inttypes.h>
 #include <immintrin.h>
 #include <stdalign.h>
-#include <fcntl.h>
 
 __m256i number, shuffle, ascii_number;
 __m256i VEC_198, ONE, VEC_246;
 
-__m256i shuffles[50]; 
+__m256i shuffles[5000]; 
 uint8_t shuffle_idx = 0;
 
 const char Fizz[] = "Fizz\n", Buzz[] = "Buzz\n", FizzBuzz[] = "FizzBuzz\n";
 
 int digits;
 
-int8_t code[200], * code_ptr = code;
+int8_t code[20000], * code_ptr = code;
 
 int CODE_SIZE;
 
 #define PAGE_SIZE 4096
 #define BUFFER_SIZE (1 << 20)
 
-alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 1024], buffer2[BUFFER_SIZE + 1024], * current_buffer = buffer1, * buffer_ptr = buffer1;
+alignas(PAGE_SIZE) char buffer1[BUFFER_SIZE + 2048], buffer2[BUFFER_SIZE + 2048], * current_buffer = buffer1, * buffer_ptr = buffer1;
 int buffer_in_use = 0;
 
-char string[2000], * string_ptr;
+char string[20000], * string_ptr;
 
 void set_constants()
 {
@@ -94,7 +92,6 @@ const char FIRST_100_LINES[] = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\
 
 int main()
 {
-   fcntl(1, F_SETPIPE_SZ, BUFFER_SIZE);
    set_constants();
    memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
    buffer_ptr += strlen(FIRST_100_LINES);
@@ -147,7 +144,7 @@ int main()
        number = ONE;
        for (int i = 0; i < digits - 3; i++) number = _mm256_slli_si256(number, 1);
        number = _mm256_add_epi8(number, VEC_246);
-       shuffle_number = _mm256_sub_epi8(number, VEC_198);
+       ascii_number = _mm256_sub_epi8(number, VEC_198);
        uint64_t RUNS, RUNS_TO_DIGIT = (line_boundary - line_number) / 300, RUNS_TO_BUFFER;
        while (1)
        {
@@ -157,27 +154,8 @@ int main()
            for (int i = 0; i < RUNS; i++) interpret_bytecode();
            if (buffer_ptr >= current_buffer + BUFFER_SIZE)
            {
-               struct iovec BUFVEC = { current_buffer, BUFFER_SIZE};
-               while (BUFVEC.iov_len > 0)
-               {
-                   int written = vmsplice(1, &BUFVEC, 1, 0);
-                   BUFVEC.iov_base = ((char*)BUFVEC.iov_base) + written;
-                   BUFVEC.iov_len -= written;
-               }
-               //fwrite(current_buffer, 1, BUFFER_SIZE, stdout);
-               int leftover = buffer_ptr - (current_buffer + BUFFER_SIZE);
-               if (buffer_in_use == 0)
-               {
-                   memcpy(buffer2, current_buffer + BUFFER_SIZE, leftover);
-                   current_buffer = buffer2;
-               }
-               else
-               {
-                   memcpy(buffer1, current_buffer + BUFFER_SIZE, leftover);
-                   current_buffer = buffer1;
-               }
-               buffer_in_use = !buffer_in_use;
-               buffer_ptr = current_buffer + leftover;
+               fwrite(current_buffer, 1, buffer_ptr - current_buffer, stdout);
+               buffer_ptr = current_buffer;
            }
            line_number += RUNS * 300;
            RUNS_TO_DIGIT -= RUNS;
