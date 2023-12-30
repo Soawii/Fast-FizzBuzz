@@ -25,7 +25,7 @@ gcc Naive.c -o Naive -O3 -march=native
 ```
 Compile all 'Intrinsic' implementations with this:
 ```
-gcc FizzBuzz.c -o FizzBuzz -mavx2 -no-pie -march=native -O3
+gcc Intrinsic.c -o Intrinsic -mavx2 -no-pie -march=native -O3
 ```
 Run:
 ```
