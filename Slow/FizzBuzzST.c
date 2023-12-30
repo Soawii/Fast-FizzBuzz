@@ -113,7 +113,7 @@ int main()
     memcpy(buffer_ptr, FIRST_100_LINES, strlen(FIRST_100_LINES));
     buffer_ptr += strlen(FIRST_100_LINES);
     uint64_t line_number = 100, line_boundary = 1000;
-    for (digits = 3; digits < 10; digits++)
+    for (digits = 3; digits < 10; digits++) // YEK
     {
         for (int i = 0; i < 500; i++) shuffles[i] = _mm256_setzero_si256();
         string_ptr = string;
