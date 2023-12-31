@@ -61,7 +61,7 @@ int main()
     return 0;
 }
 ``` 
-Total runtime: 55.4s  
+Total runtime: 55.4s    
 ### Writing to a buffer
 Writing all output to a buffer instead of prining each line seems to be much faster, let's implement that.
 ```c
@@ -107,7 +107,7 @@ int main()
     return 0;
 }
 ```
-Total runtime: 44.4s
+Total runtime: 44.4s  
 ### String representation	
 Our previous program suffers a lot from a "sprintf()" function. It is needed to write our current number to the buffer. Our number has to be represented as a string so that we could write it to a buffer without conversion slowdown. Let's try to do that.
 ```c
@@ -170,7 +170,7 @@ int main()
     return 0;
 }
 ```
-Total runtime: 5.2s
+Total runtime: 5.2s  
 ### Removing MOD and unrolling loops
 Now we can notice that the MOD (%) operation is costly and should be the next on the chopping block.  
 We can remove it because "Fizz, Buzz, Number etc." repeats itself every 15 lines, so we can simply unroll the loop, let's do it.  
@@ -221,7 +221,7 @@ int main()
     return 0;
 }
 ```
-Total runtime: 4.4s
+Total runtime: 4.4s  
 This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.  
 ### Reducing memcpy() calls 
 The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.  
@@ -287,7 +287,7 @@ int main()
 	return 0;
 }
 ```
-Total runtime: 1.6s 
+Total runtime: 1.6s   
 We have made our program much faster, but to go even further we have to use some other technologies.
 ## Making use of SIMD intrinsics
 ### Basics
@@ -450,6 +450,7 @@ int main()
     return 0;
 }
 ```
+Total runtime: 11.2s  
 In this solution we can most of the functions that we will use in the faster variant.  
   
 Now we run into the same problem as we had in the beginning: too many memcpy calls and too many number increments (most of them could be hard-coded)    
@@ -654,6 +655,7 @@ int main()
    return 0;
 }
 ```
+Total runtime: 0.74s
 ## Turning our code into opcode or Just-In-Time compilation
 We have increased the performance well enough to move onto the final improvement - turn this into opcode, push it into executable chuck of memory and run it to avoid extra intructions.  
 This is the main reason why we introduced bytecode earlier, this makes it much easier to turn each bytecode byte into opcode and push it into memory.  
