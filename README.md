@@ -35,7 +35,7 @@ Run:
 # Short algorithm explanation
 We are first making a very fast single-threaded program, which is fast because of SIMD usage and translating our algorithm into machine code. Then we are multi-threading it to make the fastest version of the program.
 # Algorithm explanation (with every major speed-up)
-1. [Making the fast version of the program with the common headers](#the-obvious-solution)  
+1. [Making a fast naive implementation](#the-obvious-solution)  
 2. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
 3. [Turning our code into opcode or Just-In-Time compilation](#turning-our-code-into-opcode-or-just-in-time-compilation)
 4. [Multi-threading and the final solution](#multi-threading)
