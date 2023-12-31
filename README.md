@@ -63,7 +63,7 @@ int main()
 ``` 
 Total runtime: 55.4s    
 ### Writing to a buffer
-Writing all output to a buffer instead of prining each line seems to be much faster, let's implement that.
+Writing all output to a buffer instead of printing each line seems to be much faster, let's implement that.
 ```c
 #include <stdio.h>
 #include <string.h>
