@@ -10,6 +10,7 @@ Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines o
 | Naive2_Buffer | 44.4s |
 | Naive3_StringNumber | 5.2s |
 | Naive4_LoopUnroll | 4.6s |
+| Naive5_MemcpyReduction | 1.6s |
 | Intrinsics1 | 11.2s |
 | Intrinsics2 | 0.74s |
 | Intrinsics3_SingleThreaded | 0.254s |
@@ -38,7 +39,8 @@ We are first making a very fast single-threaded program, which is fast because o
 2. [Making use of SIMD intrinsics and bytecode](#making-use-of-simd-intrinsics)  
 3. [Turning our code into opcode or Just-In-Time compilation](#turning-our-code-into-opcode-or-just-in-time-compilation)
 4. [Multi-threading and the final solution](#multi-threading)
-## The obvious solution
+## Naive implementations 
+### The obvious solution
 Let's start by implementing the most obvious solution to the problem and finding out what are the most time consuming parts of it.  
 We will iterate from 1 to 10^9 and check if the number is divisible by 3, 5 or by both, and output the corresponding string.  
 Here's the code for it:
@@ -59,11 +61,9 @@ int main()
     return 0;
 }
 ``` 
-
-## Speeding up the output
-We can quickly find out that printing to stdout is by far taking the most of the program's time. But WHY is it so slow?    
-The answer is stdout flushing. Each printf writes its contents into a temporary buffer which gets flushed and printed to the console just after a few calls.   
-This is VERY innefective and we can fix it by implementing our own buffer with a much bigger size, writing to it instead of calling printf, and then outputting all of its contents into stdout when there's no more space.  
+Total runtime: 55.4s  
+### Writing to a buffer
+Writing all output to a buffer instead of prining each line seems to be much faster, let's implement that.
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -107,12 +107,9 @@ int main()
     return 0;
 }
 ```
-This runs almost three times faster than the previous program! However it is still very slow.    
-## Speeding up the algorithm
-### Replacing sprintf() with memcpy()
-We have dealt with the output speed, now we have to deal with the speed of the algorithm itself.    
-After some testing, we see that sprintf() function is very costly to be ran for every number and needs to be replaced.  
-We can replace it with memcpy(), but for that we need to store our current number as a string, let's do that.  
+Total runtime: 44.4s
+### String representation	
+Our previous program suffers a lot from a "sprintf()" function. It is needed to write our current number to the buffer. Our number has to be represented as a string so that we could write it to a buffer without conversion slowdown. Let's try to do that.
 ```c
 #include <stdio.h>
 #include <string.h>
@@ -173,7 +170,7 @@ int main()
     return 0;
 }
 ```
-And that makes the program run 7 times faster!  
+Total runtime: 5.2s
 ### Removing MOD and unrolling loops
 Now we can notice that the MOD (%) operation is costly and should be the next on the chopping block.  
 We can remove it because "Fizz, Buzz, Number etc." repeats itself every 15 lines, so we can simply unroll the loop, let's do it.  
@@ -224,6 +221,7 @@ int main()
     return 0;
 }
 ```
+Total runtime: 4.4s
 This makes our code a little bit faster, more stable and helps us transfer to the next big improvement.  
 ### Reducing memcpy() calls 
 The main problem we are facing now is too many memcpy calls on small strings, this function works much better on the bigger-sized strings with less calls.  
@@ -289,8 +287,8 @@ int main()
 	return 0;
 }
 ```
-This makes out program another 2.5 times faster.  
-
+Total runtime: 1.6s 
+We have made our program much faster, but to go even further we have to use some other technologies.
 ## Making use of SIMD intrinsics
 ### Basics
 Making use of this technology can make the code faster, but most of this is done by compiler already with high optimization like -O3.    
