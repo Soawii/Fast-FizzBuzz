@@ -1,7 +1,5 @@
 # FastFizzBuzz
 Fast output for the first 10^9 lines of FizzBuzz, output redirected to /dev/null
-## Why was this made?
-Was a challenge in my university to make a FizzBuzz problem produce 10^9 lines of output in less then 0.1 seconds. I found it fun and decided to try it out!
 ## Stats
   
 | Program name | Time to complete |
